@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useMomentumFeed } from '../hooks/useMomentumFeed.js';
 import { selectVisibleAssets } from '../utils/feedView.js';
 import AssetCard from './AssetCard.jsx';
 import FilterBar from './FilterBar.jsx';
@@ -29,8 +28,21 @@ function SkeletonGrid() {
   );
 }
 
-export default function MomentumFeed({ query, onQueryChange }) {
-  const { assets, phase, connection, lastUpdated, error } = useMomentumFeed();
+export default function MomentumFeed({
+  feed,
+  query = '',
+  onQueryChange,
+  isWatched,
+  onToggleWatchlist,
+}) {
+  const {
+    assets = [],
+    phase = 'loading',
+    connection = 'connecting',
+    lastUpdated = null,
+    error = null,
+  } = feed || {};
+
   const [type, setType] = useState('all');
   const [sort, setSort] = useState('momentum');
 
@@ -72,7 +84,12 @@ export default function MomentumFeed({ query, onQueryChange }) {
       {visible.length > 0 && (
         <ul className="grid">
           {visible.map((asset) => (
-            <AssetCard key={asset.id} asset={asset} />
+            <AssetCard
+              key={asset.id}
+              asset={asset}
+              isWatched={isWatched ? isWatched(asset.id) : false}
+              onToggleWatchlist={onToggleWatchlist}
+            />
           ))}
         </ul>
       )}

@@ -3,10 +3,18 @@ import { classifyMomentum } from '../../shared/momentum.js';
 import { formatChange, formatPrice, formatScore, formatVolume } from '../utils/format.js';
 import MiniChart from './MiniChart.jsx';
 
-function AssetCard({ asset }) {
+function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchlist }) {
   const status = classifyMomentum(asset.momentum_score);
   const positive = asset.change_24h >= 0;
   const arrow = asset.change_24h > 0 ? '▲' : asset.change_24h < 0 ? '▼' : '';
+
+  const handleToggle = () => {
+    if (onToggleWatchlist) {
+      onToggleWatchlist(asset.id);
+    } else if (onAddToWatchlist) {
+      onAddToWatchlist(asset.id);
+    }
+  };
 
   return (
     <li className="card">
@@ -15,7 +23,19 @@ function AssetCard({ asset }) {
           <h2 className="card__name">{asset.name}</h2>
           <span className="card__symbol">{asset.symbol}</span>
         </div>
-        <span className={`badge badge--${status.toLowerCase()}`}>{status}</span>
+        <div className="card__head-actions">
+          <button
+            type="button"
+            className={`card__watchlist-toggle ${isWatched ? 'is-watched' : ''}`}
+            onClick={handleToggle}
+            aria-label={isWatched ? `Remove ${asset.name} from watchlist` : `Add ${asset.name} to watchlist`}
+            aria-pressed={isWatched}
+            title={isWatched ? `Remove ${asset.name} from watchlist` : `Add ${asset.name} to watchlist`}
+          >
+            <span aria-hidden="true">{isWatched ? '★' : '☆'}</span>
+          </button>
+          <span className={`badge badge--${status.toLowerCase()}`}>{status}</span>
+        </div>
       </div>
 
       <div className="card__price-row">

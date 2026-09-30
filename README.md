@@ -27,8 +27,10 @@ React (Vite) ─ useMomentumFeed(): fetch snapshot → open EventSource → patc
 ```
 
 - `shared/momentum.js` holds the formula and thresholds once; the server scores with it and the UI uses it for badges.
-- Filtering, sorting and search are pure functions in `src/utils/feedView.js` and run entirely client-side.
 - **DiscoveryRail** (`src/components/DiscoveryRail.jsx`) displays four discovery categories (Trending, Gainers, Volume Spikes, New Listings) as compact horizontally-scrollable chip strips above the main feed. Clicking a chip filters the main grid to that asset via the shared search query. Refreshes every 5 minutes independently of the main polling loop.
+- **WatchlistPanel** (`src/components/WatchlistPanel.jsx`, `src/hooks/useWatchlist.js`) provides persistent asset tracking stored in browser `localStorage` under the exact key `wtf_watchlist`. Watched assets reflect live price and 24h change updates pushed via the existing SSE feed without saving stale prices to storage. Users can toggle watched status via the star button on any `AssetCard` or remove assets directly with accessible remove buttons. Shows the exact empty-state message `Add assets to track them here` when empty.
+  - **Desktop (> 900px):** Collapsible sidebar panel sitting alongside the 3-column asset grid.
+  - **Mobile (< 600px):** Collapsible bottom drawer that stays compact when closed and slides up when expanded, with 1-column stacked asset cards.
 
 ## Tech stack
 
