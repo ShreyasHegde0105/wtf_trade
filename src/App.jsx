@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import DiscoveryRail from './components/DiscoveryRail.jsx';
 import MomentumFeed from './components/MomentumFeed.jsx';
+import MomentumLeaderboard from './components/MomentumLeaderboard.jsx';
 import WatchlistPanel from './components/WatchlistPanel.jsx';
 import { useMomentumFeed } from './hooks/useMomentumFeed.js';
 import { useWatchlist } from './hooks/useWatchlist.js';
@@ -40,6 +41,7 @@ export default function App() {
           onSelectAsset={handleDiscoverySelect}
         />
       </div>
+      <MomentumLeaderboard onSelectAsset={handleDiscoverySelect} />
     </div>
   );
 }

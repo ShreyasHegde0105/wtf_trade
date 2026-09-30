@@ -38,3 +38,27 @@ export async function fetchDiscovery(signal) {
     new_listings: sanitizeList(body.new_listings),
   };
 }
+
+export async function fetchLeaderboard(signal) {
+  const response = await fetch(`${API_BASE}/api/feed/leaderboard`, {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.any([signal, AbortSignal.timeout(SNAPSHOT_TIMEOUT_MS)]),
+  });
+  if (!response.ok) throw new Error(`Leaderboard request failed (${response.status})`);
+
+  const body = await response.json();
+  if (!Array.isArray(body?.leaderboard)) throw new Error('Leaderboard response was malformed');
+
+  return body.leaderboard
+    .map((item, index) => {
+      const sanitized = sanitizeAsset(item);
+      if (!sanitized) return null;
+      return {
+        ...sanitized,
+        rank: typeof item.rank === 'number' && Number.isFinite(item.rank) ? item.rank : index + 1,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 10);
+}
+

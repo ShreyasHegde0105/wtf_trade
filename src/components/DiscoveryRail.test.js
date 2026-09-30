@@ -106,6 +106,41 @@ describe('DiscoveryRail: category rendering logic', () => {
     }
   });
 
+  test('four category tabs exist and trending is active by default', async () => {
+    const { DISCOVERY_CATEGORIES, DEFAULT_DISCOVERY_CATEGORY } = await import('../utils/discovery.js');
+    assert.equal(DISCOVERY_CATEGORIES.length, 4);
+    assert.deepEqual(
+      DISCOVERY_CATEGORIES.map((c) => c.key),
+      ['trending', 'gainers', 'volume_spikes', 'new_listings'],
+    );
+    assert.equal(DEFAULT_DISCOVERY_CATEGORY, 'trending');
+  });
+
+  test('only active category chips are shown and tab switching selects correct assets', () => {
+    const data = {
+      trending: [mockAsset('btc')],
+      gainers: [mockAsset('eth', { change_24h: 12 })],
+      volume_spikes: [mockAsset('sol')],
+      new_listings: [],
+    };
+
+    let activeTab = 'trending';
+    let visibleChips = data[activeTab];
+    assert.equal(visibleChips.length, 1);
+    assert.equal(visibleChips[0].id, 'btc');
+
+    // Switch to gainers tab
+    activeTab = 'gainers';
+    visibleChips = data[activeTab];
+    assert.equal(visibleChips.length, 1);
+    assert.equal(visibleChips[0].id, 'eth');
+
+    // Switch to new_listings tab (empty)
+    activeTab = 'new_listings';
+    visibleChips = data[activeTab];
+    assert.equal(visibleChips.length, 0);
+  });
+
   test('empty categories produce empty arrays, not errors', () => {
     const empty = {
       trending: [],

@@ -1,14 +1,8 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { classifyMomentum } from '../../shared/momentum.js';
 import { useDiscovery } from '../hooks/useDiscovery.js';
+import { DISCOVERY_CATEGORIES } from '../utils/discovery.js';
 import { formatChange, formatScore } from '../utils/format.js';
-
-const CATEGORIES = [
-  { key: 'trending', label: 'Trending', emptyText: 'No trending assets' },
-  { key: 'gainers', label: 'Gainers', emptyText: 'No gainers' },
-  { key: 'volume_spikes', label: 'Volume Spikes', emptyText: 'No volume spikes' },
-  { key: 'new_listings', label: 'New Listings', emptyText: 'No new listings' },
-];
 
 function chipValue(category, asset) {
   if (category === 'gainers') return formatChange(asset.change_24h);
@@ -17,7 +11,7 @@ function chipValue(category, asset) {
 }
 
 function chipSecondary(category, asset) {
-  if (category === 'gainers') return null; // change is the primary value
+  if (category === 'gainers') return null;
   return formatChange(asset.change_24h);
 }
 
@@ -51,27 +45,9 @@ function DiscoveryChip({ asset, category, onSelect }) {
 
 const MemoChip = memo(DiscoveryChip);
 
-function CategoryStrip({ category, assets, emptyText, onSelect }) {
-  return (
-    <div className="discovery__category">
-      <h3 className="discovery__heading">{category.label}</h3>
-      {assets.length === 0 ? (
-        <p className="discovery__empty">{emptyText}</p>
-      ) : (
-        <div className="discovery__scroll" role="list" aria-label={`${category.label} assets`}>
-          {assets.map((asset) => (
-            <div role="listitem" key={asset.id}>
-              <MemoChip asset={asset} category={category.key} onSelect={onSelect} />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function DiscoveryRail({ onSelectAsset }) {
   const { data, phase, error } = useDiscovery();
+  const [activeCategory, setActiveCategory] = useState('trending');
 
   if (phase === 'loading') {
     return (
@@ -81,7 +57,7 @@ export default function DiscoveryRail({ onSelectAsset }) {
     );
   }
 
-  if (phase === 'error' && !data.trending.length) {
+  if (phase === 'error' && !data?.trending?.length) {
     return (
       <aside className="discovery discovery--error" aria-label="Discovery rail">
         <p className="discovery__error">Discovery unavailable</p>
@@ -89,17 +65,60 @@ export default function DiscoveryRail({ onSelectAsset }) {
     );
   }
 
+  const currentCategory =
+    DISCOVERY_CATEGORIES.find((cat) => cat.key === activeCategory) || DISCOVERY_CATEGORIES[0];
+  const activeAssets = data?.[currentCategory.key] || [];
+
   return (
     <aside className="discovery" aria-label="Discovery rail">
-      {CATEGORIES.map((cat) => (
-        <CategoryStrip
-          key={cat.key}
-          category={cat}
-          assets={data[cat.key]}
-          emptyText={cat.emptyText}
-          onSelect={onSelectAsset}
-        />
-      ))}
+      {/* Tab Navigation */}
+      <div className="discovery__tabs" role="tablist" aria-label="Discovery categories">
+        {DISCOVERY_CATEGORIES.map((cat) => {
+          const isActive = activeCategory === cat.key;
+          return (
+            <button
+              key={cat.key}
+              type="button"
+              role="tab"
+              id={`discovery-tab-${cat.key}`}
+              aria-selected={isActive}
+              aria-controls={`discovery-panel-${cat.key}`}
+              className={`discovery__tab ${isActive ? 'is-active' : ''}`}
+              onClick={() => setActiveCategory(cat.key)}
+            >
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active Category Content */}
+      <div
+        id={`discovery-panel-${currentCategory.key}`}
+        role="tabpanel"
+        aria-labelledby={`discovery-tab-${currentCategory.key}`}
+        className="discovery__content"
+      >
+        {activeAssets.length === 0 ? (
+          <p className="discovery__empty">{currentCategory.emptyText}</p>
+        ) : (
+          <div
+            className="discovery__scroll"
+            role="list"
+            aria-label={`${currentCategory.label} assets`}
+          >
+            {activeAssets.map((asset) => (
+              <div role="listitem" key={asset.id}>
+                <MemoChip
+                  asset={asset}
+                  category={currentCategory.key}
+                  onSelect={onSelectAsset}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
