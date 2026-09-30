@@ -27,6 +27,12 @@ React (Vite) ─ useMomentumFeed(): fetch snapshot → open EventSource → patc
 ```
 
 - `shared/momentum.js` holds the formula and thresholds once; the server scores with it and the UI uses it for badges.
+- **FilterBar** (`src/components/FilterBar.jsx`) filters assets by momentum level (`All`, `Hot`, `Warming`, `Neutral`) using the shared momentum classifier, with sorting by Momentum, Price Change, or Volume. Active controls highlight in the brand accent (`#00E5C4`).
+- **SearchBar** (`src/components/SearchBar.jsx`) provides case-insensitive search by asset name or symbol with a 300ms debounce to prevent layout thrashing on keystrokes, plus an accessible clear button when input is present.
+- **AssetCard** (`src/components/AssetCard.jsx`) features:
+  - 7-day hourly price sparkline rendered with Recharts (`MiniChart.jsx`, 80×40px, no axes/grid/dots/fill, `#00E5C4` for upward trend and `#FF4B4B` for downward trend).
+  - Visual volume ratio progress bar displaying `volume_24h / avg_volume_7d` safely clamped (e.g. `1.8× avg`).
+  - Watchlist star toggle (`★`/`☆`) with accessible labels and `aria-pressed`.
 - **DiscoveryRail** (`src/components/DiscoveryRail.jsx`) displays four discovery categories (Trending, Gainers, Volume Spikes, New Listings) as compact horizontally-scrollable chip strips above the main feed. Clicking a chip filters the main grid to that asset via the shared search query. Refreshes every 5 minutes independently of the main polling loop.
 - **WatchlistPanel** (`src/components/WatchlistPanel.jsx`, `src/hooks/useWatchlist.js`) provides persistent asset tracking stored in browser `localStorage` under the exact key `wtf_watchlist`. Watched assets reflect live price and 24h change updates pushed via the existing SSE feed without saving stale prices to storage. Users can toggle watched status via the star button on any `AssetCard` or remove assets directly with accessible remove buttons. Shows the exact empty-state message `Add assets to track them here` when empty.
   - **Desktop (> 900px):** Collapsible sidebar panel sitting alongside the 3-column asset grid.
@@ -34,7 +40,7 @@ React (Vite) ─ useMomentumFeed(): fetch snapshot → open EventSource → patc
 
 ## Tech stack
 
-React 18, Vite, Chart.js + react-chartjs-2, Node.js (>= 22.9), Express, Server-Sent Events, CoinGecko free API. The only runtime backend dependency is `express`. Tests use Node's built-in test runner.
+React 18, Vite, Recharts, Node.js (>= 22.9), Express, Server-Sent Events, CoinGecko free API. The only runtime backend dependency is `express`. Tests use Node's built-in test runner.
 
 ## Local setup
 

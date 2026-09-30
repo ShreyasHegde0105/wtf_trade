@@ -43,20 +43,23 @@ export default function MomentumFeed({
     error = null,
   } = feed || {};
 
-  const [type, setType] = useState('all');
+  const [momentum, setMomentum] = useState('all');
   const [sort, setSort] = useState('momentum');
 
   const visible = useMemo(
-    () => selectVisibleAssets(assets, { type, query, sort }),
-    [assets, type, query, sort],
+    () => selectVisibleAssets(assets, { momentum, query, sort }),
+    [assets, momentum, query, sort],
   );
-
-  const noEquities = type === 'equity' && !assets.some((asset) => asset.asset_type === 'equity');
 
   return (
     <section className="feed" aria-label="Momentum feed">
       <SearchBar value={query} onChange={onQueryChange} />
-      <FilterBar type={type} onTypeChange={setType} sort={sort} onSortChange={setSort} />
+      <FilterBar
+        momentum={momentum}
+        onMomentumChange={setMomentum}
+        sort={sort}
+        onSortChange={setSort}
+      />
       <ConnectionStatus connection={connection} lastUpdated={lastUpdated} />
 
       {phase === 'ready' && connection === 'reconnecting' && (
@@ -75,9 +78,7 @@ export default function MomentumFeed({
 
       {phase === 'ready' && visible.length === 0 && (
         <p className="notice">
-          {noEquities
-            ? 'Equities are not connected yet.'
-            : 'No assets match your search. Clear the search or change the filter.'}
+          No assets match your filter or search. Clear the search or change the filter.
         </p>
       )}
 

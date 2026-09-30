@@ -1,4 +1,13 @@
+import { classifyMomentum } from '../../shared/momentum.js';
+
 // Pure, client-side filtering / searching / sorting of the live feed.
+
+export const MOMENTUM_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'hot', label: 'Hot' },
+  { value: 'warming', label: 'Warming' },
+  { value: 'neutral', label: 'Neutral' },
+];
 
 export const TYPE_OPTIONS = [
   { value: 'crypto', label: 'Crypto' },
@@ -18,6 +27,15 @@ const COMPARATORS = {
   change: (a, b) => b.change_24h - a.change_24h,
   volume: (a, b) => b.volume_24h - a.volume_24h,
 };
+
+export function filterByMomentum(assets, level) {
+  if (!level || level.toLowerCase() === 'all') return assets;
+  const target = level.toLowerCase();
+  return assets.filter((asset) => {
+    const assetLevel = classifyMomentum(asset.momentum_score);
+    return assetLevel.toLowerCase() === target;
+  });
+}
 
 export function filterByType(assets, type) {
   return type === 'all' ? assets : assets.filter((asset) => asset.asset_type === type);
@@ -39,6 +57,13 @@ export function sortAssets(assets, sortKey) {
   );
 }
 
-export function selectVisibleAssets(assets, { type, query, sort }) {
-  return sortAssets(searchAssets(filterByType(assets, type), query), sort);
+export function selectVisibleAssets(assets, { momentum = 'all', type = 'all', query = '', sort = 'momentum' }) {
+  let list = assets;
+  if (type && type !== 'all') {
+    list = filterByType(list, type);
+  }
+  if (momentum && momentum !== 'all') {
+    list = filterByMomentum(list, momentum);
+  }
+  return sortAssets(searchAssets(list, query), sort);
 }

@@ -1,4 +1,4 @@
-import { SORT_OPTIONS, TYPE_OPTIONS } from '../utils/feedView.js';
+import { MOMENTUM_FILTER_OPTIONS, SORT_OPTIONS } from '../utils/feedView.js';
 
 function SegmentedControl({ label, options, value, onChange }) {
   return (
@@ -18,11 +18,28 @@ function SegmentedControl({ label, options, value, onChange }) {
   );
 }
 
-export default function FilterBar({ type, onTypeChange, sort, onSortChange }) {
+export default function FilterBar({
+  momentum = 'all',
+  onMomentumChange,
+  sort = 'momentum',
+  onSortChange,
+}) {
   return (
     <div className="filters">
-      <SegmentedControl label="Asset type" options={TYPE_OPTIONS} value={type} onChange={onTypeChange} />
-      <SegmentedControl label="Sort by" options={SORT_OPTIONS} value={sort} onChange={onSortChange} />
+      <SegmentedControl
+        label="Momentum filter"
+        options={MOMENTUM_FILTER_OPTIONS}
+        value={momentum}
+        onChange={onMomentumChange}
+      />
+      {sort && onSortChange && (
+        <SegmentedControl
+          label="Sort by"
+          options={SORT_OPTIONS}
+          value={sort}
+          onChange={onSortChange}
+        />
+      )}
     </div>
   );
 }

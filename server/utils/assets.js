@@ -31,6 +31,7 @@ export function normalizeMarketCoin(raw) {
     volume_24h: Math.max(0, toFiniteNumber(raw.total_volume) ?? 0),
     // The 7d sparkline is hourly, so the last 24 points cover roughly one day.
     sparkline_24h: sparkline.slice(-SPARKLINE_POINTS),
+    sparkline_7d: sparkline,
   };
 }
 
@@ -42,6 +43,10 @@ export function toPublicAsset(candidate) {
     avgVolume7d: candidate.avg_volume_7d,
   });
 
+  const avg = toFiniteNumber(candidate.avg_volume_7d);
+  const volume = toFiniteNumber(candidate.volume_24h);
+  const volumeRatio = volume !== null && avg !== null && avg > 0 ? volume / avg : 0;
+
   return {
     id: candidate.id,
     symbol: candidate.symbol,
@@ -49,9 +54,11 @@ export function toPublicAsset(candidate) {
     price: candidate.price,
     change_24h: candidate.change_24h,
     volume_24h: candidate.volume_24h,
+    volume_ratio: round(volumeRatio, 2),
     momentum_score: round(momentum),
     asset_type: candidate.asset_type,
     sparkline_24h: candidate.sparkline_24h ?? [],
+    sparkline_7d: candidate.sparkline_7d ?? candidate.sparkline_24h ?? [],
   };
 }
 
