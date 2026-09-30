@@ -18,13 +18,17 @@ server/services/coingecko.js  ── shared rate-limit backoff gate
 server/services/feed.js  ── ONE shared polling loop, keeps last good data
       │                      scores with shared/momentum.js
       ├─► GET /api/feed/snapshot   (top 20, sorted by momentum_score)
+      ├─► GET /api/feed/discovery  (trending, gainers, volume_spikes, new_listings)
+      ├─► GET /api/feed/leaderboard (top 10 by momentum_score, with rank)
       └─► server/services/sseHub.js ─► GET /api/feed/stream (SSE, all clients share one poll)
 
 React (Vite) ─ useMomentumFeed(): fetch snapshot → open EventSource → patch changed assets
+              ─ useDiscovery(): fetch /api/feed/discovery every 5 min → DiscoveryRail
 ```
 
 - `shared/momentum.js` holds the formula and thresholds once; the server scores with it and the UI uses it for badges.
 - Filtering, sorting and search are pure functions in `src/utils/feedView.js` and run entirely client-side.
+- **DiscoveryRail** (`src/components/DiscoveryRail.jsx`) displays four discovery categories (Trending, Gainers, Volume Spikes, New Listings) as compact horizontally-scrollable chip strips above the main feed. Clicking a chip filters the main grid to that asset via the shared search query. Refreshes every 5 minutes independently of the main polling loop.
 
 ## Tech stack
 
@@ -96,6 +100,51 @@ Top 20 assets sorted by `momentum_score` descending. `503` with `{ "error": "...
 ```
 
 The first seven fields are the brief's contract. **Two additive fields** were added so the UI can work without extra requests: `asset_type` (`"crypto"` | `"equity"`, drives the filter) and `sparkline_24h` (last 24 hourly prices for the mini chart; may be empty). `change_24h` is a percentage (`8.15` = +8.15%). `momentum_score` is rounded to 4 decimals.
+
+### `GET /api/feed/discovery`
+
+Curated discovery categories derived from the current snapshot. No additional CoinGecko requests are made. `503` until the first successful poll.
+
+```json
+{
+  "trending": [{ "id": "solana", "...same asset shape..." }],
+  "gainers": [{ "id": "bitcoin", "...same asset shape..." }],
+  "volume_spikes": [{ "id": "ethereum", "...same asset shape..." }],
+  "new_listings": []
+}
+```
+
+| Category | Logic | Max |
+| --- | --- | --- |
+| `trending` | Top assets by `momentum_score` descending | 5 |
+| `gainers` | Top assets with positive `change_24h`, sorted descending | 5 |
+| `volume_spikes` | Top assets by `volume_24h / avg_volume_7d` descending | 5 |
+| `new_listings` | Empty until a listing-date source is available (see note below) | 5 |
+
+**`new_listings` note:** The existing architecture polls CoinGecko `/coins/markets` sorted by market cap, which does not provide listing dates. Rather than fabricating data, this category returns an empty array. It will be populated when a listing-date source (e.g. CoinGecko Pro `/coins/new`) is integrated.
+
+### `GET /api/feed/leaderboard`
+
+Top 10 assets by `momentum_score` with sequential rank numbers. `503` until the first successful poll.
+
+```json
+{
+  "leaderboard": [
+    {
+      "rank": 1,
+      "id": "solana",
+      "symbol": "SOL",
+      "name": "Solana",
+      "price": 150.06,
+      "change_24h": 8.15,
+      "volume_24h": 5740369437.2,
+      "momentum_score": 3.261,
+      "asset_type": "crypto",
+      "sparkline_24h": [151.7, 151.2, "...24 prices"]
+    }
+  ]
+}
+```
 
 ### `GET /api/feed/stream` (SSE)
 

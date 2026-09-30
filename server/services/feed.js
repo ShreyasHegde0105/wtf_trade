@@ -51,10 +51,11 @@ export function createFeedService({ providers, topN, pollIntervalMs, logger }) {
     });
     if (!gotFreshData) return; // keep the previous snapshot, nothing new to broadcast
 
-    const assets = buildSnapshot([...lastGood.values()].flat(), topN);
+    const allCandidates = [...lastGood.values()].flat();
+    const assets = buildSnapshot(allCandidates, topN);
     if (assets.length === 0) return;
 
-    snapshot = { assets, updatedAt: Date.now() };
+    snapshot = { assets, updatedAt: Date.now(), _candidates: allCandidates };
     for (const listener of listeners) {
       try {
         listener(assets);

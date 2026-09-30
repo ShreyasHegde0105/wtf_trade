@@ -18,3 +18,23 @@ export async function fetchSnapshot(signal) {
   if (!Array.isArray(body?.assets)) throw new Error('Snapshot response was malformed');
   return body.assets.map(sanitizeAsset).filter(Boolean);
 }
+
+export async function fetchDiscovery(signal) {
+  const response = await fetch(`${API_BASE}/api/feed/discovery`, {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.any([signal, AbortSignal.timeout(SNAPSHOT_TIMEOUT_MS)]),
+  });
+  if (!response.ok) throw new Error(`Discovery request failed (${response.status})`);
+
+  const body = await response.json();
+  // Sanitize each category's assets individually
+  const sanitizeList = (list) =>
+    Array.isArray(list) ? list.map(sanitizeAsset).filter(Boolean) : [];
+
+  return {
+    trending: sanitizeList(body.trending),
+    gainers: sanitizeList(body.gainers),
+    volume_spikes: sanitizeList(body.volume_spikes),
+    new_listings: sanitizeList(body.new_listings),
+  };
+}

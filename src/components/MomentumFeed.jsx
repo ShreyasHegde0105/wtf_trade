@@ -29,11 +29,10 @@ function SkeletonGrid() {
   );
 }
 
-export default function MomentumFeed() {
+export default function MomentumFeed({ query, onQueryChange }) {
   const { assets, phase, connection, lastUpdated, error } = useMomentumFeed();
   const [type, setType] = useState('all');
   const [sort, setSort] = useState('momentum');
-  const [query, setQuery] = useState('');
 
   const visible = useMemo(
     () => selectVisibleAssets(assets, { type, query, sort }),
@@ -44,7 +43,7 @@ export default function MomentumFeed() {
 
   return (
     <section className="feed" aria-label="Momentum feed">
-      <SearchBar value={query} onChange={setQuery} />
+      <SearchBar value={query} onChange={onQueryChange} />
       <FilterBar type={type} onTypeChange={setType} sort={sort} onSortChange={setSort} />
       <ConnectionStatus connection={connection} lastUpdated={lastUpdated} />
 
