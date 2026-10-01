@@ -6,14 +6,16 @@ import SearchBar from './SearchBar.jsx';
 
 const timeFormat = new Intl.DateTimeFormat('en-GB', { timeStyle: 'medium' });
 
-function ConnectionStatus({ connection, lastUpdated }) {
-  const label =
-    connection === 'live' ? 'Live' : connection === 'reconnecting' ? 'Reconnecting' : 'Connecting';
+function FeedMeta({ connection, lastUpdated, count, total }) {
   return (
-    <p className="status" role="status">
-      <span className={`status__dot status__dot--${connection}`} aria-hidden="true" />
-      {label}
-      {lastUpdated && <span className="status__time">Updated {timeFormat.format(lastUpdated)}</span>}
+    <p className="feed__meta">
+      <span className="num">{count}</span>
+      <span>/ {total} assets</span>
+      {lastUpdated && (
+        <span className={`feed__updated ${connection === 'live' ? '' : 'is-stale'}`}>
+          Updated <span className="num">{timeFormat.format(lastUpdated)}</span>
+        </span>
+      )}
     </p>
   );
 }
@@ -34,6 +36,7 @@ export default function MomentumFeed({
   onQueryChange,
   isWatched,
   onToggleWatchlist,
+  onOpenAsset,
 }) {
   const {
     assets = [],
@@ -52,15 +55,20 @@ export default function MomentumFeed({
   );
 
   return (
-    <section className="feed" aria-label="Momentum feed">
-      <SearchBar value={query} onChange={onQueryChange} />
-      <FilterBar
-        momentum={momentum}
-        onMomentumChange={setMomentum}
-        sort={sort}
-        onSortChange={setSort}
-      />
-      <ConnectionStatus connection={connection} lastUpdated={lastUpdated} />
+    <section className="feed panel" aria-labelledby="feed-title">
+      <div className="section-head">
+        <h2 id="feed-title" className="section-head__title">Momentum Terminal</h2>
+        <FeedMeta connection={connection} lastUpdated={lastUpdated} count={visible.length} total={assets.length} />
+      </div>
+      <div className="feed__toolbar">
+        <SearchBar value={query} onChange={onQueryChange} />
+        <FilterBar
+          momentum={momentum}
+          onMomentumChange={setMomentum}
+          sort={sort}
+          onSortChange={setSort}
+        />
+      </div>
 
       {phase === 'ready' && connection === 'reconnecting' && (
         <p className="notice" role="alert">
@@ -90,6 +98,7 @@ export default function MomentumFeed({
               asset={asset}
               isWatched={isWatched ? isWatched(asset.id) : false}
               onToggleWatchlist={onToggleWatchlist}
+              onOpen={onOpenAsset}
             />
           ))}
         </ul>

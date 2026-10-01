@@ -1,10 +1,15 @@
 import { memo } from 'react';
 import { classifyMomentum } from '../../shared/momentum.js';
+import { safeVolumeRatio } from '../utils/chartSeries.js';
 import { formatChange, formatPrice, formatScore, formatVolume } from '../utils/format.js';
 import MiniChart from './MiniChart.jsx';
 
-function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchlist }) {
+// 2.5x the 7-day average volume fills the bar completely.
+const VOLUME_BAR_MAX = 2.5;
+
+function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchlist, onOpen }) {
   const status = classifyMomentum(asset.momentum_score);
+  const level = status.toLowerCase();
   const positive = asset.change_24h >= 0;
   const arrow = asset.change_24h > 0 ? '▲' : asset.change_24h < 0 ? '▼' : '';
 
@@ -20,24 +25,30 @@ function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchli
     ? asset.sparkline_7d
     : (asset.sparkline_24h || []);
 
-  const ratio = typeof asset.volume_ratio === 'number' && Number.isFinite(asset.volume_ratio) && asset.volume_ratio > 0
-    ? asset.volume_ratio
-    : 0;
-
-  // Clamp bar width to a safe 0-100% range where 2.5x avg is 100% full
-  const clampedPercent = Math.min(Math.max((ratio / 2.5) * 100, 0), 100);
+  const ratio = safeVolumeRatio(asset.volume_ratio);
+  // Clamp bar width to a safe 0-100% range
+  const clampedPercent = Math.min(Math.max((ratio / VOLUME_BAR_MAX) * 100, 0), 100);
 
   return (
-    <li className="card">
+    <li className={`card card--${level}`}>
+      {onOpen && (
+        <button
+          type="button"
+          className="card__open"
+          onClick={() => onOpen(asset.id)}
+          aria-label={`Open ${asset.name} (${asset.symbol}) chart and details`}
+        />
+      )}
+
       <div className="card__head">
         <div className="card__id">
-          <h2 className="card__name">{asset.name}</h2>
           <span className="card__symbol">{asset.symbol}</span>
+          <h2 className="card__name">{asset.name}</h2>
         </div>
         <div className="card__head-actions">
           <button
             type="button"
-            className={`card__watchlist-toggle ${isWatched ? 'is-watched' : ''}`}
+            className={`star-btn ${isWatched ? 'is-watched' : ''}`}
             onClick={handleToggle}
             aria-label={isWatched ? `Remove ${asset.name} from watchlist` : `Add ${asset.name} to watchlist`}
             aria-pressed={isWatched}
@@ -45,49 +56,48 @@ function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchli
           >
             <span aria-hidden="true">{isWatched ? '★' : '☆'}</span>
           </button>
-          <span className={`badge badge--${status.toLowerCase()}`}>{status}</span>
+          <span className={`badge badge--${level}`}>{status}</span>
         </div>
       </div>
 
       <div className="card__price-row">
-        <div>
-          <span className="card__price">{formatPrice(asset.price)}</span>
-          <span className={`card__change ${positive ? 'is-up' : 'is-down'}`}>
+        <div className="card__quote">
+          <span className="card__price num">{formatPrice(asset.price)}</span>
+          <span className={`card__change num ${positive ? 'is-up' : 'is-down'}`}>
             {arrow} {formatChange(asset.change_24h)}
+            <span className="card__change-period">24h</span>
             <span className="visually-hidden"> in 24 hours</span>
           </span>
         </div>
-        <MiniChart
-          data={sparklineData}
-          trend={positive ? 'up' : 'down'}
-        />
+        <MiniChart data={sparklineData} trend={positive ? 'up' : 'down'} />
       </div>
 
-      <div className="card__volume-bar-section" aria-label={`Volume ratio: ${ratio > 0 ? `${ratio.toFixed(1)}x avg` : 'unavailable'}`}>
-        <div className="card__volume-bar-header">
-          <span className="card__volume-label">Volume</span>
-          <span className="card__volume-ratio-text">
-            {ratio > 0 ? `${ratio.toFixed(1)}× avg` : '—'}
-          </span>
-        </div>
-        <div className="card__volume-track" role="progressbar" aria-valuenow={ratio} aria-valuemin="0" aria-valuemax="2.5">
-          <div
-            className="card__volume-fill"
-            style={{ width: `${clampedPercent}%` }}
-          />
-        </div>
-      </div>
-
-      <dl className="card__stats">
-        <div>
+      <dl className="card__metrics">
+        <div className="card__metric">
           <dt>Momentum</dt>
-          <dd>{formatScore(asset.momentum_score)}</dd>
+          <dd className={`num card__score card__score--${level}`}>{formatScore(asset.momentum_score)}</dd>
         </div>
-        <div>
-          <dt>Volume 24h</dt>
-          <dd>{formatVolume(asset.volume_24h)}</dd>
+        <div className="card__metric">
+          <dt>Volume</dt>
+          <dd className="num">{ratio > 0 ? `${ratio.toFixed(1)}× avg` : '—'}</dd>
+        </div>
+        <div className="card__metric">
+          <dt>Vol 24h</dt>
+          <dd className="num">{formatVolume(asset.volume_24h)}</dd>
         </div>
       </dl>
+
+      <div
+        className="vol-meter"
+        role="progressbar"
+        aria-label={`Volume ratio: ${ratio > 0 ? `${ratio.toFixed(1)}x average` : 'unavailable'}`}
+        aria-valuenow={ratio}
+        aria-valuemin="0"
+        aria-valuemax={VOLUME_BAR_MAX}
+      >
+        <div className="vol-meter__fill" style={{ width: `${clampedPercent}%` }} />
+        <span className="vol-meter__tick" style={{ left: `${(1 / VOLUME_BAR_MAX) * 100}%` }} aria-hidden="true" />
+      </div>
     </li>
   );
 }

@@ -8,6 +8,7 @@ import { createCoinGeckoClient } from './services/coingecko.js';
 import { createFeedService } from './services/feed.js';
 import { createProviders } from './services/providers/index.js';
 import { createScoreStore } from './services/scoreStore.js';
+import { createSnapshotWriter } from './services/snapshotWriter.js';
 import { createSupabaseClient } from './services/supabase.js';
 import { createSseHub } from './services/sseHub.js';
 import { logger } from './utils/logger.js';
@@ -36,10 +37,13 @@ export function startServer(config = loadConfig(), { fetchImpl } = {}) {
 
   const db = createSupabaseClient(config.supabase, fetchImpl);
   let scoreStore = null;
+  let snapshotWriter = null;
   if (db) {
     const assetRegistry = createAssetRegistry({ db, logger });
     feed.subscribe(assetRegistry.onAssets);
     scoreStore = createScoreStore({ db });
+    snapshotWriter = createSnapshotWriter({ db, assetRegistry, logger });
+    feed.subscribe(snapshotWriter.onAssets);
   } else {
     logger.warn('database_not_configured', { reason: 'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set; nothing is persisted' });
   }
@@ -64,9 +68,10 @@ export function startServer(config = loadConfig(), { fetchImpl } = {}) {
     sseHub.closeAll();
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
+    await snapshotWriter?.whenIdle?.();
   }
 
-  return { server, feed, sseHub, stop };
+  return { server, feed, sseHub, snapshotWriter, stop };
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

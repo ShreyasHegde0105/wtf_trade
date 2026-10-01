@@ -1,6 +1,15 @@
 import { memo, useMemo, useState } from 'react';
 import { classifyMomentum } from '../../shared/momentum.js';
 import { formatChange, formatPrice, formatScore } from '../utils/format.js';
+import MiniChart from './MiniChart.jsx';
+
+const MOBILE_QUERY = '(max-width: 599px)';
+
+// On phones the panel is a bottom drawer, so it starts collapsed to keep the feed visible.
+function initiallyOpen() {
+  if (typeof window === 'undefined' || !window.matchMedia) return true;
+  return !window.matchMedia(MOBILE_QUERY).matches;
+}
 
 function WatchlistItem({ id, asset, onRemove, onSelectAsset }) {
   const status = asset?.momentum_score != null ? classifyMomentum(asset.momentum_score) : null;
@@ -8,44 +17,52 @@ function WatchlistItem({ id, asset, onRemove, onSelectAsset }) {
   const arrow = asset?.change_24h > 0 ? '▲' : asset?.change_24h < 0 ? '▼' : '';
   const displayName = asset?.name || id;
   const displaySymbol = asset?.symbol || id.toUpperCase();
+  const spark = asset?.sparkline_7d?.length > 1 ? asset.sparkline_7d : asset?.sparkline_24h;
 
   return (
-    <li className="watchlist__item">
+    <li className="wl-row">
       <button
         type="button"
-        className="watchlist__item-select"
+        className="wl-row__select"
         onClick={() => asset && onSelectAsset?.(asset)}
         aria-label={`Filter by ${displayName}`}
         title={`Filter feed by ${displayName}`}
       >
-        <div className="watchlist__item-id">
-          <span className="watchlist__item-symbol">{displaySymbol}</span>
-          <span className="watchlist__item-name">{displayName}</span>
-        </div>
-
-        <div className="watchlist__item-market">
-          <span className="watchlist__item-price">
-            {asset?.price != null ? formatPrice(asset.price) : '—'}
+        <span className="wl-row__id">
+          <span className="wl-row__symbol">
+            {status && (
+              <span
+                className={`dot dot--${status.toLowerCase()}`}
+                title={`Momentum: ${status} (${formatScore(asset.momentum_score)})`}
+                aria-hidden="true"
+              />
+            )}
+            {displaySymbol}
           </span>
-          {asset?.change_24h != null && (
-            <span className={`watchlist__item-change ${positive ? 'is-up' : 'is-down'}`}>
+          <span className="wl-row__name">{displayName}</span>
+        </span>
+
+        <span className="wl-row__spark" aria-hidden="true">
+          {spark?.length > 1 && (
+            <MiniChart data={spark} trend={positive ? 'up' : 'down'} width={44} height={18} strokeWidth={1.5} />
+          )}
+        </span>
+
+        <span className="wl-row__market">
+          <span className="wl-row__price num">{asset?.price != null ? formatPrice(asset.price) : '—'}</span>
+          {asset?.change_24h != null ? (
+            <span className={`wl-row__change num ${positive ? 'is-up' : 'is-down'}`}>
               {arrow} {formatChange(asset.change_24h)}
             </span>
+          ) : (
+            <span className="wl-row__change">No live data</span>
           )}
-        </div>
-
-        {status && (
-          <span
-            className={`watchlist__item-dot watchlist__item-dot--${status.toLowerCase()}`}
-            title={`Momentum: ${status} (${formatScore(asset.momentum_score)})`}
-            aria-hidden="true"
-          />
-        )}
+        </span>
       </button>
 
       <button
         type="button"
-        className="watchlist__remove-btn"
+        className="wl-row__remove"
         onClick={() => onRemove(id)}
         aria-label={`Remove ${displayName} from watchlist`}
         title={`Remove ${displayName} from watchlist`}
@@ -59,7 +76,7 @@ function WatchlistItem({ id, asset, onRemove, onSelectAsset }) {
 const MemoWatchlistItem = memo(WatchlistItem);
 
 function WatchlistPanel({ watchedIds = [], assets = [], onRemove, onSelectAsset }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
 
   // Map watchedIds to their live asset data from the feed state
   const assetMap = useMemo(() => {
@@ -71,54 +88,51 @@ function WatchlistPanel({ watchedIds = [], assets = [], onRemove, onSelectAsset 
   }, [assets]);
 
   return (
-    <aside
-      className={`watchlist ${isOpen ? 'is-open' : 'is-collapsed'}`}
-      aria-label="Watchlist"
-    >
+    <aside id="watchlist" className={`watchlist panel ${isOpen ? 'is-open' : 'is-collapsed'}`} aria-labelledby="watchlist-title">
       <div className="watchlist__header">
-        <div className="watchlist__header-title">
-          <h2 className="watchlist__title">Watchlist</h2>
-          <span
-            className="watchlist__count"
-            aria-label={`${watchedIds.length} assets watched`}
-          >
-            {watchedIds.length}
-          </span>
-        </div>
         <button
           type="button"
-          className="watchlist__toggle-btn"
+          className="watchlist__toggle"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
           aria-controls="watchlist-content"
-          aria-label={isOpen ? 'Collapse watchlist' : 'Expand watchlist'}
           title={isOpen ? 'Collapse watchlist' : 'Expand watchlist'}
         >
-          <span className="watchlist__toggle-icon" aria-hidden="true">
-            {isOpen ? '▾' : '▸'}
+          <span className="watchlist__grip" aria-hidden="true" />
+          <span id="watchlist-title" className="section-head__title">Watchlist</span>
+          <span className="watchlist__count num" aria-label={`${watchedIds.length} assets watched`}>
+            {watchedIds.length}
           </span>
+          <span className="watchlist__toggle-icon" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+          <span className="visually-hidden">{isOpen ? 'Collapse watchlist' : 'Expand watchlist'}</span>
         </button>
       </div>
 
-      <div
-        id="watchlist-content"
-        className="watchlist__body"
-        hidden={!isOpen}
-      >
+      <div id="watchlist-content" className="watchlist__body" hidden={!isOpen}>
         {watchedIds.length === 0 ? (
-          <p className="watchlist__empty">Add assets to track them here</p>
+          <p className="watchlist__empty">
+            Add assets to track them here
+            <span className="watchlist__empty-hint">Tap ☆ on any asset card</span>
+          </p>
         ) : (
-          <ul className="watchlist__list" role="list">
-            {watchedIds.map((id) => (
-              <MemoWatchlistItem
-                key={id}
-                id={id}
-                asset={assetMap.get(id)}
-                onRemove={onRemove}
-                onSelectAsset={onSelectAsset}
-              />
-            ))}
-          </ul>
+          <>
+            <div className="wl-cols" aria-hidden="true">
+              <span>Asset</span>
+              <span>7D</span>
+              <span>Last / 24h</span>
+            </div>
+            <ul className="watchlist__list" role="list">
+              {watchedIds.map((id) => (
+                <MemoWatchlistItem
+                  key={id}
+                  id={id}
+                  asset={assetMap.get(id)}
+                  onRemove={onRemove}
+                  onSelectAsset={onSelectAsset}
+                />
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </aside>

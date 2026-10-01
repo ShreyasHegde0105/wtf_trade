@@ -83,7 +83,7 @@ No network or hitting rate limits? `npm run dev:mock` starts a **synthetic** Coi
 
 ## Where to plug in real APIs
 
-- **CoinGecko (backend):** everything lives in `server/services/coingecko.js` (URLs, params, auth header). Put your key in `.env` as `COINGECKO_API_KEY`. Pro keys use a different header and base URL: change them in that file.
+- **Crypto market data provider: CoinGecko:** everything lives in `server/services/coingecko.js` (URLs, params, auth header). Put your key in `.env` as `COINGECKO_API_KEY`.
 - **Equities (backend):** implement `createEquitiesProvider` in `server/services/providers/equities.js`. The file documents the exact interface. Nothing else needs to change.
 - **Frontend:** all network calls are in `src/services/api.js`.
 

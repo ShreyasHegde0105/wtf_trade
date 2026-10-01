@@ -46,14 +46,18 @@ export function MomentumLeaderboard({ onSelectAsset }) {
     return () => {
       clearInterval(timerRef.current);
       controllerRef.current?.abort();
+      // Let a remount (e.g. StrictMode) start a fresh request instead of waiting on the aborted one.
+      inFlightRef.current = false;
     };
   }, [load]);
 
+  const topScore = leaderboard.reduce((max, asset) => Math.max(max, asset.momentum_score || 0), 0);
+
   return (
-    <section className="leaderboard" aria-label="Momentum Leaderboard">
-      <div className="leaderboard__header">
-        <h2 className="leaderboard__title">Momentum Leaderboard</h2>
-        <span className="leaderboard__subtitle">Top 10 assets by momentum score</span>
+    <section className="leaderboard panel" aria-labelledby="leaderboard-title">
+      <div className="section-head">
+        <h2 id="leaderboard-title" className="section-head__title">Momentum Leaderboard</h2>
+        <span className="section-head__sub">Top 10 by momentum score · refreshes every 60s</span>
       </div>
 
       {phase === 'loading' && (
@@ -74,15 +78,15 @@ export function MomentumLeaderboard({ onSelectAsset }) {
 
       {leaderboard.length > 0 && (
         <div className="leaderboard__table-container">
-          <table className="leaderboard__table">
+          <table className="lb">
             <caption className="visually-hidden">Top 10 Momentum Ranked Assets</caption>
             <thead>
               <tr>
-                <th scope="col" className="leaderboard__th leaderboard__th--rank">Rank</th>
-                <th scope="col" className="leaderboard__th leaderboard__th--asset">Asset</th>
-                <th scope="col" className="leaderboard__th leaderboard__th--score">Score</th>
-                <th scope="col" className="leaderboard__th leaderboard__th--label">Momentum</th>
-                <th scope="col" className="leaderboard__th leaderboard__th--change">24h Change</th>
+                <th scope="col" className="lb__th lb__th--rank"><abbr title="Rank">#</abbr></th>
+                <th scope="col" className="lb__th">Asset</th>
+                <th scope="col" className="lb__th lb__th--score">Score</th>
+                <th scope="col" className="lb__th lb__th--status">Status</th>
+                <th scope="col" className="lb__th lb__th--num">24h</th>
               </tr>
             </thead>
             <tbody>
@@ -92,11 +96,12 @@ export function MomentumLeaderboard({ onSelectAsset }) {
                 const status = classifyMomentum(asset.momentum_score);
                 const positive = asset.change_24h >= 0;
                 const arrow = asset.change_24h > 0 ? '▲' : asset.change_24h < 0 ? '▼' : '';
+                const scorePct = topScore > 0 ? Math.max((asset.momentum_score / topScore) * 100, 0) : 0;
 
                 return (
                   <tr
                     key={asset.id || index}
-                    className={`leaderboard__row ${isRankOne ? 'leaderboard__row--first' : ''}`}
+                    className={`lb__row ${isRankOne ? 'lb__row--first' : ''}`}
                     onClick={() => onSelectAsset?.(asset)}
                     role={onSelectAsset ? 'button' : undefined}
                     tabIndex={onSelectAsset ? 0 : undefined}
@@ -116,27 +121,28 @@ export function MomentumLeaderboard({ onSelectAsset }) {
                         : undefined
                     }
                   >
-                    <td className="leaderboard__td leaderboard__td--rank">
-                      <span className={`leaderboard__rank-badge ${isRankOne ? 'leaderboard__rank-badge--first' : ''}`}>
-                        {isRankOne ? `★ ${rank}` : rank}
+                    <td className="lb__td lb__td--rank">
+                      <span className={`lb__rank ${isRankOne ? 'lb__rank--first' : ''}`}>
+                        {isRankOne ? `★${rank}` : rank}
                       </span>
                     </td>
-                    <td className="leaderboard__td leaderboard__td--asset">
-                      <div className="leaderboard__asset-info">
-                        <span className="leaderboard__symbol">{asset.symbol}</span>
-                        <span className="leaderboard__name">{asset.name}</span>
-                      </div>
-                    </td>
-                    <td className="leaderboard__td leaderboard__td--score">
-                      <span className="leaderboard__score">{formatScore(asset.momentum_score)}</span>
-                    </td>
-                    <td className="leaderboard__td leaderboard__td--label">
-                      <span className={`badge badge--${status.toLowerCase()}`}>
-                        {status}
+                    <td className="lb__td">
+                      <span className="lb__asset">
+                        <span className="lb__symbol">{asset.symbol}</span>
+                        <span className="lb__name">{asset.name}</span>
                       </span>
                     </td>
-                    <td className="leaderboard__td leaderboard__td--change">
-                      <span className={`leaderboard__change ${positive ? 'is-up' : 'is-down'}`}>
+                    <td className="lb__td lb__td--score">
+                      <span className="lb__score num">{formatScore(asset.momentum_score)}</span>
+                      <span className="lb__bar" aria-hidden="true">
+                        <span className={`lb__bar-fill lb__bar-fill--${status.toLowerCase()}`} style={{ width: `${scorePct}%` }} />
+                      </span>
+                    </td>
+                    <td className="lb__td lb__td--status">
+                      <span className={`badge badge--${status.toLowerCase()}`}>{status}</span>
+                    </td>
+                    <td className="lb__td lb__td--num">
+                      <span className={`num ${positive ? 'is-up' : 'is-down'}`}>
                         {arrow} {formatChange(asset.change_24h)}
                       </span>
                     </td>

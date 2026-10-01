@@ -1,25 +1,25 @@
 import { memo, useMemo } from 'react';
-import { Line, LineChart } from 'recharts';
+import { Line, LineChart, YAxis } from 'recharts';
 
-function MiniChart({ data, prices, trend, positive }) {
+export const UP_COLOR = '#00E5C4';
+export const DOWN_COLOR = '#FF4B4B';
+
+function MiniChart({ data, prices, trend, positive, width = 80, height = 40, strokeWidth = 2 }) {
   const points = data || prices || [];
   const isUp = trend != null ? trend === 'up' : Boolean(positive);
-  const strokeColor = isUp ? '#00E5C4' : '#FF4B4B';
+  const strokeColor = isUp ? UP_COLOR : DOWN_COLOR;
 
   const chartData = useMemo(() => {
     if (!Array.isArray(points)) return [];
     return points.map((val, idx) => ({ i: idx, v: typeof val === 'number' ? val : 0 }));
   }, [points]);
 
+  const size = { width: `${width}px`, height: `${height}px` };
+
   if (!Array.isArray(points) || points.length < 2) {
     return (
-      <div
-        className="chart chart--empty"
-        role="img"
-        aria-label="7-day chart unavailable"
-        style={{ width: '80px', height: '40px' }}
-      >
-        Chart unavailable
+      <div className="chart chart--empty" role="img" aria-label="7-day chart unavailable" style={size}>
+        {width >= 60 ? 'No chart' : '—'}
       </div>
     );
   }
@@ -29,19 +29,16 @@ function MiniChart({ data, prices, trend, positive }) {
       className="chart"
       role="img"
       aria-label={`7-day price trend: ${isUp ? 'upward' : 'downward'}`}
-      style={{ width: '80px', height: '40px' }}
+      style={size}
     >
-      <LineChart
-        width={80}
-        height={40}
-        data={chartData}
-        margin={{ top: 2, right: 2, bottom: 2, left: 2 }}
-      >
+      <LineChart width={width} height={height} data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+        {/* Fit the line to the data range; Recharts' default [0, auto] flattens high-priced assets. */}
+        <YAxis hide domain={['dataMin', 'dataMax']} />
         <Line
           type="monotone"
           dataKey="v"
           stroke={strokeColor}
-          strokeWidth={2}
+          strokeWidth={strokeWidth}
           dot={false}
           isAnimationActive={false}
         />

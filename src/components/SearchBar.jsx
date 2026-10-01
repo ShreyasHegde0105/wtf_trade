@@ -35,17 +35,21 @@ export default function SearchBar({ value = '', onChange }) {
         Search by name or symbol
       </label>
       <div className="search__input-wrapper">
+        <span className="search__icon" aria-hidden="true">⌕</span>
         <input
           id="asset-search"
           className="search__input"
           type="search"
-          placeholder="Search name or symbol"
+          placeholder="Search assets, symbols…"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
           value={inputValue}
           onChange={handleChange}
         />
+        {!inputValue && (
+          <kbd className="kbd search__kbd" aria-hidden="true">/</kbd>
+        )}
         {Boolean(inputValue) && (
           <button
             type="button"

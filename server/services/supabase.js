@@ -86,5 +86,14 @@ export function createSupabaseClient({ url, serviceKey, timeoutMs }, fetchImpl =
         prefer: `resolution=${ignoreDuplicates ? 'ignore' : 'merge'}-duplicates,return=minimal`,
       });
     },
+
+    /** Appends rows without conflict resolution. */
+    async insert(table, rows) {
+      if (rows.length === 0) return;
+      await request('POST', table, {
+        body: rows,
+        prefer: 'return=minimal',
+      });
+    },
   };
 }
