@@ -19,6 +19,14 @@ export function loadConfig(env = process.env) {
       apiKey: env.COINGECKO_API_KEY || '',
       timeoutMs: 8000,
     },
+    supabase: {
+      url: env.SUPABASE_URL || '',
+      serviceKey: env.SUPABASE_SERVICE_ROLE_KEY || '',
+      timeoutMs: 8000,
+    },
+    webhook: {
+      secret: env.WTF_WEBHOOK_SECRET || '',
+    },
     equities: {
       provider: env.EQUITIES_PROVIDER || '',
       apiKey: env.EQUITIES_API_KEY || '',

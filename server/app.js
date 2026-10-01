@@ -1,7 +1,8 @@
 import express from 'express';
+import { createInternalScoresRouter } from './routes/internalScores.js';
 import { cors, securityHeaders } from './utils/http.js';
 
-export function createApp({ config, feed, sseHub, logger }) {
+export function createApp({ config, feed, sseHub, logger, scoreStore = null }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(securityHeaders);
@@ -102,6 +103,8 @@ export function createApp({ config, feed, sseHub, logger }) {
     res.set('Cache-Control', 'no-store');
     res.json({ leaderboard });
   });
+
+  app.use(createInternalScoresRouter({ secret: config.webhook?.secret, scoreStore, logger }));
 
   app.use('/api', (req, res) => {
     res.status(404).json({ error: 'Not found' });

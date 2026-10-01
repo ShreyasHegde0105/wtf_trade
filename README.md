@@ -2,7 +2,7 @@
 
 A mobile-first, real-time dashboard that surfaces crypto assets (equities later) showing unusual momentum, based on 24h price movement and trading volume.
 
-It is a **read-only, anonymous market feed**. It is not a trading platform, wallet, or blockchain app: there are no accounts, no database and no order execution.
+It is a **read-only, anonymous market feed**. It is not a trading platform, wallet, or blockchain app: there are no accounts and no order execution. Market data and scoring-engine output are persisted to Supabase (optional; without it the feed runs fully in memory).
 
 ## Architecture
 
@@ -75,6 +75,9 @@ No network or hitting rate limits? `npm run dev:mock` starts a **synthetic** Coi
 | `MAX_SSE_CLIENTS` | `200` | Max concurrent SSE connections |
 | `VOLUME_CACHE_TTL_MS` | `3600000` | Freshness of the 7-day average volume |
 | `VOLUME_REQUEST_DELAY_MS` | `2500` | Spacing between historical-volume requests |
+| `SUPABASE_URL` | empty | Supabase project URL, e.g. `https://<project-id>.supabase.co`. Empty = no persistence |
+| `SUPABASE_SERVICE_ROLE_KEY` | empty | Service-role / secret key. Bypasses RLS: server-only, never in the frontend or in Git |
+| `WTF_WEBHOOK_SECRET` | empty | Shared secret for `POST /internal/scores` (`X-WTF-Secret`). Empty = webhook answers 503 |
 | `EQUITIES_PROVIDER`, `EQUITIES_API_KEY` | empty | Reserved for the Week 3 equities provider |
 | `VITE_API_BASE_URL` | empty | Frontend, build-time: backend origin when deployed. Empty locally |
 
@@ -170,6 +173,45 @@ data: {"id":"solana","symbol":"SOL","name":"Solana","price":150.06,...}
 ### `GET /api/health`
 
 `{ "status": "ok", "hasSnapshot": true, "updatedAt": "...", "sseClients": 1 }`, for uptime checks.
+
+## Scoring-engine webhook
+
+### `POST /internal/scores`
+
+The scoring engine (separate service) pushes momentum scores here each scoring cycle. Server-to-server only; not proxied to or called by the frontend.
+
+- **Auth:** header `X-WTF-Secret: <WTF_WEBHOOK_SECRET>`, compared in constant time before the body is read.
+- **Body:** `Content-Type: application/json`, one score object or an array of up to 500:
+
+```json
+{ "symbol": "BTC", "score": 1.72, "signal": "bullish", "updated_at": "2026-10-01T10:15:00Z" }
+```
+
+| Field | Rule |
+| --- | --- |
+| `symbol` | Ticker, case-insensitive (stored upper-case). Must exist in the `assets` table |
+| `score` | Finite number |
+| `signal` | Non-empty string, max 32 chars |
+| `updated_at` | ISO 8601 timestamp, not more than 5 minutes in the future |
+
+| Status | Meaning |
+| --- | --- |
+| `200 { "ok": true, "accepted": n, "rejected": [{ "symbol", "reason" }] }` | Stored. `rejected` lists symbols not in `assets` (retrying will not help) |
+| `400 { "error": "bad payload", "details": [...] }` | Invalid JSON or fields; nothing stored |
+| `401 { "error": "unauthorized" }` | Missing or wrong secret |
+| `415` / `413` | Not JSON / body over 256 KB |
+| `502` | Database unavailable: **retry later** |
+| `503` | Webhook not configured on this server |
+
+Each score is appended to `momentum_score_history`; a retried delivery (same `symbol` + `updated_at`) is ignored. `momentum_scores` keeps the newest score per symbol and is never overwritten by an older one. Every request is logged (`scores_received` / `scores_rejected` / `scores_auth_failed`); the secret never is.
+
+```bash
+curl -X POST http://localhost:3001/internal/scores   -H "Content-Type: application/json" -H "X-WTF-Secret: $WTF_WEBHOOK_SECRET"   -d '[{"symbol":"BTC","score":1.72,"signal":"bullish","updated_at":"2026-10-01T10:15:00Z"}]'
+```
+
+### Database
+
+Tables live in the Supabase project `WTF-Trading-App`: `assets`, `price_snapshots`, `momentum_scores`, `momentum_score_history` (RLS enabled; the backend uses the service-role key). The backend registers every symbol the live feed tracks into `assets`, so scores for those symbols are accepted. Run `server/db/migrations/001_momentum_score_history_unique.sql` once in the Supabase SQL editor; the webhook's retry de-duplication needs it.
 
 ## Momentum score
 

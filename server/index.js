@@ -2,10 +2,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { createVolumeCache } from './cache/volumeCache.js';
+import { createAssetRegistry } from './services/assetRegistry.js';
 import { loadConfig } from './config.js';
 import { createCoinGeckoClient } from './services/coingecko.js';
 import { createFeedService } from './services/feed.js';
 import { createProviders } from './services/providers/index.js';
+import { createScoreStore } from './services/scoreStore.js';
+import { createSupabaseClient } from './services/supabase.js';
 import { createSseHub } from './services/sseHub.js';
 import { logger } from './utils/logger.js';
 
@@ -31,13 +34,27 @@ export function startServer(config = loadConfig(), { fetchImpl } = {}) {
   });
   feed.subscribe(sseHub.broadcast);
 
-  const app = createApp({ config, feed, sseHub, logger });
+  const db = createSupabaseClient(config.supabase, fetchImpl);
+  let scoreStore = null;
+  if (db) {
+    const assetRegistry = createAssetRegistry({ db, logger });
+    feed.subscribe(assetRegistry.onAssets);
+    scoreStore = createScoreStore({ db });
+  } else {
+    logger.warn('database_not_configured', { reason: 'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set; nothing is persisted' });
+  }
+  if (!config.webhook.secret) {
+    logger.warn('scores_webhook_disabled', { reason: 'WTF_WEBHOOK_SECRET not set; POST /internal/scores answers 503' });
+  }
+
+  const app = createApp({ config, feed, sseHub, logger, scoreStore });
   const server = app.listen(config.port, () => {
     logger.info('server_started', {
       port: server.address().port,
       env: config.nodeEnv,
       pollIntervalMs: config.feed.pollIntervalMs,
       providers: providers.map((provider) => provider.name),
+      database: Boolean(db),
     });
   });
   feed.start();
