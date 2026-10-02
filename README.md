@@ -1,6 +1,6 @@
 # Trading Companion App
 
-A mobile-first, real-time dashboard that surfaces crypto assets (equities later) showing unusual momentum, based on 24h price movement and trading volume.
+A mobile-first, real-time dashboard that surfaces crypto assets and US equities showing unusual momentum, based on 24h price movement and trading volume.
 
 It is a **read-only, anonymous market feed**. It is not a trading platform, wallet, or blockchain app: there are no accounts and no order execution. Market data and scoring-engine output are persisted to Supabase (optional; without it the feed runs fully in memory).
 
@@ -13,7 +13,13 @@ CoinGecko (free tier)
 server/services/coingecko.js  ── shared rate-limit backoff gate
       │
       ├─ providers/crypto.js ── uses cache/volumeCache.js (7-day avg volume, TTL 1h)
-      ├─ providers/equities.js (placeholder, Week 3)
+      │
+Yahoo Finance (public v8 chart API, no key)
+      │  chart range=1d/15m per symbol (60s while open, 15 min while closed)
+      │  chart range=1mo/1d per symbol (7-session avg volume, TTL 6h)
+      ▼
+server/services/yahooFinance.js ── 429 backoff gate
+      ├─ providers/equities.js ── same volumeCache, ids `equity:<TICKER>`
       ▼
 server/services/feed.js  ── ONE shared polling loop, keeps last good data
       │                      scores with shared/momentum.js
@@ -78,13 +84,25 @@ No network or hitting rate limits? `npm run dev:mock` starts a **synthetic** Coi
 | `SUPABASE_URL` | empty | Supabase project URL, e.g. `https://<project-id>.supabase.co`. Empty = no persistence |
 | `SUPABASE_SERVICE_ROLE_KEY` | empty | Service-role / secret key. Bypasses RLS: server-only, never in the frontend or in Git |
 | `WTF_WEBHOOK_SECRET` | empty | Shared secret for `POST /internal/scores` (`X-WTF-Secret`). Empty = webhook answers 503 |
-| `EQUITIES_PROVIDER`, `EQUITIES_API_KEY` | empty | Reserved for the Week 3 equities provider |
+| `EQUITIES_SYMBOLS` | empty | Comma-separated US tickers (e.g. `AAPL,MSFT,NVDA`). Trimmed, upper-cased, de-duplicated. Empty = crypto only |
+| `EQUITIES_REFRESH_MS` | `60000` | Yahoo quote refresh while the US regular session is open |
+| `EQUITIES_CLOSED_REFRESH_MS` | `900000` | Quote refresh while the market is closed (or at the next open, if sooner) |
+| `EQUITIES_HISTORY_TTL_MS` | `21600000` | Freshness of the equities 7-session average volume (6h) |
+| `EQUITIES_HISTORY_REQUEST_DELAY_MS` | `500` | Spacing between equity history requests |
+| `YAHOO_FINANCE_BASE_URL` | `https://query1.finance.yahoo.com` | Override, e.g. for a mock |
 | `VITE_API_BASE_URL` | empty | Frontend, build-time: backend origin when deployed. Empty locally |
 
 ## Where to plug in real APIs
 
 - **Crypto market data provider: CoinGecko:** everything lives in `server/services/coingecko.js` (URLs, params, auth header). Put your key in `.env` as `COINGECKO_API_KEY`.
-- **Equities (backend):** implement `createEquitiesProvider` in `server/services/providers/equities.js`. The file documents the exact interface. Nothing else needs to change.
+- **Equities (backend):** all Yahoo requests live in `server/services/yahooFinance.js`; `server/services/providers/equities.js` maps them to the provider interface. To swap data sources, replace the client and keep the candidate shape.
+
+### Equities details
+
+- **Ids vs symbols:** feed ids are namespaced (`equity:AAPL`) so they never collide with CoinGecko ids; `symbol` stays `AAPL`, and Supabase `assets.symbol` / `price_snapshots.symbol` use the display symbol, the same as crypto. Avoid configuring a ticker that is also a tracked crypto symbol: both would map to one `assets` row, and this is not detected automatically.
+- **Fields:** `price` = regular-market price; `change_24h` = % change since the previous session's close; `volume_24h` = today's **dollar** volume (shares x price), so it is in USD like CoinGecko's; `avg_volume_7d` = mean dollar volume of the last 7 completed sessions (today's bar is skipped while the session is open); `sparkline_24h` = the most recent session's 15-minute closes; `sparkline_7d` = `[]` (not fetched for equities); `exchange` = Yahoo's exchange name (e.g. `NasdaqGS`), stored in `assets.exchange`.
+- **Market hours:** outside the regular session the last real quote is served unchanged and Yahoo is polled only every 15 minutes. Missing values are never invented: a missing previous close gives `change_24h: 0` (the crypto fallback) and a log line; a missing price drops the symbol. Non-USD listings are skipped.
+- **Failures:** each symbol is isolated. A failing symbol is logged (`equity_symbol_failed`) and keeps its last good quote for up to 30 minutes. If every symbol fails, the feed keeps its last good equities and crypto is unaffected. `topN` (20) applies per asset type, so equities never crowd crypto out of the feed or the snapshot writer.
 - **Frontend:** all network calls are in `src/services/api.js`.
 
 ## API
@@ -103,19 +121,21 @@ Top 20 assets sorted by `momentum_score` descending. `503` with `{ "error": "...
       "price": 150.06,
       "change_24h": 8.15,
       "volume_24h": 5740369437.2,
+      "volume_ratio": 1.25,
       "momentum_score": 3.261,
       "asset_type": "crypto",
-      "sparkline_24h": [151.7, 151.2, "...24 prices"]
+      "sparkline_24h": [151.7, 151.2, "...24 prices"],
+      "sparkline_7d": [145.2, "...168 prices"]
     }
   ]
 }
 ```
 
-The first seven fields are the brief's contract. **Two additive fields** were added so the UI can work without extra requests: `asset_type` (`"crypto"` | `"equity"`, drives the filter) and `sparkline_24h` (last 24 hourly prices for the mini chart; may be empty). `change_24h` is a percentage (`8.15` = +8.15%). `momentum_score` is rounded to 4 decimals.
+The public contract deliberately uses `price` and `change_24h` rather than `price_usd` and `price_change_24h` to maintain strict contract compatibility with the frontend UI (`src/utils/assets.js`). Internal fields (`_candidates`, `avg_volume_7d`) are never exposed publicly; instead, `volume_ratio` (`volume_24h / avg_volume_7d`) is exposed safely. Equities also include an optional `exchange` string.
 
 ### `GET /api/feed/discovery`
 
-Curated discovery categories derived from the current snapshot. No additional CoinGecko requests are made. `503` until the first successful poll.
+Curated discovery categories derived from the current snapshot and official CoinGecko endpoints. No per-user upstream calls are made. `503` until the first successful poll.
 
 ```json
 {
@@ -131,9 +151,12 @@ Curated discovery categories derived from the current snapshot. No additional Co
 | `trending` | Top assets by `momentum_score` descending | 5 |
 | `gainers` | Top assets with positive `change_24h`, sorted descending | 5 |
 | `volume_spikes` | Top assets by `volume_24h / avg_volume_7d` descending | 5 |
-| `new_listings` | Empty until a listing-date source is available (see note below) | 5 |
+| `new_listings` | Official CoinGecko `/coins/list/new` endpoint (max 5) when supported, or `[]` on Free/Demo plans | 5 |
 
-**`new_listings` note:** The existing architecture polls CoinGecko `/coins/markets` sorted by market cap, which does not provide listing dates. Rather than fabricating data, this category returns an empty array. It will be populated when a listing-date source (e.g. CoinGecko Pro `/coins/new`) is integrated.
+**`new_listings` behavior:**
+- CoinGecko's official `/coins/list/new` endpoint requires a paid plan (Analyst/Lite/Pro/Enterprise) and responds with HTTP 401 on Free/Demo tiers.
+- When running on a paid plan with Pro credentials, `server/services/newListings.js` matches newly listed coins with verified market candidates and normalizes them into the public asset shape (max 5).
+- On the Free/Demo plan or when unsupported, the service logs `new_listings_disabled` once internally, safely returns `[]`, and does not manufacture fake listing dates, fake prices, or hammer the API.
 
 ### `GET /api/feed/leaderboard`
 
@@ -267,13 +290,30 @@ You should see a burst of `data:` lines right away and another burst roughly eve
 - **Backend → Railway** (or any long-running Node host). Start command `npm start`, set `CORS_ORIGIN` to the Vercel URL, optionally `COINGECKO_API_KEY`.
 - The backend is deliberately **not** deployed as a Vercel serverless function: SSE needs long-lived connections and a single shared poller, which serverless functions do not provide. Keep frontend and backend separate.
 
+## Verification Status
+
+| Category | Component / Feature | Status | Notes |
+| --- | --- | --- | --- |
+| **Crypto Data** | CoinGecko `/coins/markets` (USD, price, 24h change, volume, sparkline) | **VERIFIED LIVE** | Tested with live public API; returns 200 with 168-point 7d hourly sparkline |
+| **Crypto History** | CoinGecko `/coins/{id}/market_chart` (7d hourly volume history) | **VERIFIED LIVE** | Tested with live Bitcoin market chart; returns 169 volume sample points |
+| **Equities Data** | Yahoo Finance quote (`/v8/finance/chart/{symbol}?range=1d&interval=15m`) | **VERIFIED LIVE** | Tested live with AAPL; returns regularMarketPrice, previousClose, volume, intraday closes |
+| **Equities History** | Yahoo Finance history (`range=1mo&interval=1d` for 7 completed sessions) | **VERIFIED LIVE** | Tested live with AAPL; returns 21 daily bars with close and volume for USD dollar-volume calculation |
+| **Equities Isolation** | Fallback to last-good quote, individual symbol failures, market session cadence | **VERIFIED WITH MOCK** | 14 automated unit and integration tests in `server/tests/equities.test.js` |
+| **New Listings** | CoinGecko `/coins/list/new` endpoint verification | **VERIFIED LIVE** | Tested live on public/free plan: returns HTTP 401 (`error_code: 10005`, "This request is limited to PRO API subscribers") |
+| **New Listings Service** | Normalization, candidate matching, 401 handling, debug logging, caching | **VERIFIED WITH MOCK** | 5 automated tests in `server/tests/newListings.test.js`; disabled on free tier without fake data |
+| **API Contract** | Field presence, numeric finiteness, hidden internals (`_candidates`), SSE headers | **VERIFIED WITH MOCK** | 9 comprehensive contract tests locking exact schema in `server/tests/api-contract.test.js` |
+| **Rate Limit / 429** | Exponential backoff, `Retry-After` header parsing, fast failure without hitting network | **VERIFIED WITH MOCK** | Tested with mock backoff gate in `coingecko.test.js` and `equities.test.js` |
+| **New Listings (Real)** | Populated `new_listings` category with real newly listed coins | **NOT AVAILABLE WITHOUT PAID API** | Requires CoinGecko Analyst/Pro tier ($29+/mo) with `https://pro-api.coingecko.com/api/v3` and `x-cg-pro-api-key` |
+
 ## Known limitations
 
-- **Verified against a mock, not live CoinGecko.** Live behaviour (real rate limits, response quirks) still needs a run on a machine with internet access.
+- **CoinGecko New Listings Paid Tier:** `/coins/list/new` requires a CoinGecko Pro/Analyst subscription. On Free and Demo plans, the endpoint answers HTTP 401 and `new_listings` safely remains `[]`.
 - **Cold start:** until a coin's 7-day average has loaded (about 50s for 20 coins with the default delay), its volume term is 0, so scores are lower than they will be.
-- The formula uses the percentage change directly, so the price term dominates the volume term; that is the v1 brief formula and was not altered.
+- The formula uses the percentage change directly, so the price term dominates the volume term; that is the Brief v2 formula and was not altered.
 - CoinGecko free tier limits are strict and its data updates every 1-5 minutes, so many 10s polls return unchanged numbers; a Demo API key helps with limits.
 - If `UNIVERSE_SIZE` is raised above 20, assets that drop out of the top 20 stay on screen until reload (the client merges updates and does not prune).
-- Equities are not implemented (no provider configured); the Equities filter shows an explanatory message.
+- Yahoo Finance's chart API is public but unofficial: no SLA, and it may change or rate-limit without notice.
+- Outside market hours the snapshot writer still stores the (unchanged) last equity price every 15 minutes, with `pct_change_15m` = 0.
 - "Price Change" sorts by signed 24h change, biggest gainers first.
 - Fonts load from Google Fonts; without network the system fallbacks are used.
+
