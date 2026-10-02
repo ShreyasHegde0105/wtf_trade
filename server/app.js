@@ -2,7 +2,7 @@ import express from 'express';
 import { createInternalScoresRouter } from './routes/internalScores.js';
 import { cors, securityHeaders } from './utils/http.js';
 
-export function createApp({ config, feed, sseHub, logger, scoreStore = null }) {
+export function createApp({ config, feed, sseHub, logger, scoreStore = null, db = null, newListingsService = null }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(securityHeaders);
@@ -77,11 +77,10 @@ export function createApp({ config, feed, sseHub, logger, scoreStore = null }) {
       .slice(0, 5)
       .map((entry) => entry.asset);
 
-    // new_listings: The existing architecture only polls CoinGecko /coins/markets sorted by
-    // market cap, which does not include a "listed at" date or a /coins/new endpoint.
-    // Without reliable listing-date information, returning an empty array avoids fabricating
-    // data. This can be populated when a listing-date source becomes available.
-    const new_listings = [];
+    // new_listings: CoinGecko restricts /coins/list/new to paid plans (Analyst/Pro).
+    // When supported, newListingsService returns normalized real assets (max 5).
+    // On free/unsupported plans, returns [] without fabricating fake listing dates or prices.
+    const new_listings = newListingsService?.getNewListings(candidates) ?? [];
 
     res.set('Cache-Control', 'no-store');
     res.json({ trending, gainers, volume_spikes, new_listings });

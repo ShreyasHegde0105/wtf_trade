@@ -6,6 +6,7 @@ import { createAssetRegistry } from './services/assetRegistry.js';
 import { loadConfig } from './config.js';
 import { createCoinGeckoClient } from './services/coingecko.js';
 import { createFeedService } from './services/feed.js';
+import { createNewListingsService } from './services/newListings.js';
 import { createProviders } from './services/providers/index.js';
 import { createScoreStore } from './services/scoreStore.js';
 import { createSnapshotWriter } from './services/snapshotWriter.js';
@@ -21,7 +22,7 @@ export function startServer(config = loadConfig(), { fetchImpl } = {}) {
     requestDelayMs: config.feed.volumeRequestDelayMs,
     logger,
   });
-  const providers = createProviders({ config, client, volumeCache, logger });
+  const providers = createProviders({ config, client, volumeCache, logger, fetchImpl });
   const feed = createFeedService({
     providers,
     topN: config.feed.topN,
@@ -51,7 +52,8 @@ export function startServer(config = loadConfig(), { fetchImpl } = {}) {
     logger.warn('scores_webhook_disabled', { reason: 'WTF_WEBHOOK_SECRET not set; POST /internal/scores answers 503' });
   }
 
-  const app = createApp({ config, feed, sseHub, logger, scoreStore });
+  const newListingsService = createNewListingsService({ client, logger });
+  const app = createApp({ config, feed, sseHub, logger, scoreStore, db, newListingsService });
   const server = app.listen(config.port, () => {
     logger.info('server_started', {
       port: server.address().port,

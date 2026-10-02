@@ -37,9 +37,15 @@ export function createCoinGeckoClient({ baseUrl, apiKey, timeoutMs }, fetchImpl 
     const url = new URL(`${baseUrl.replace(/\/$/, '')}${path}`);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, String(value));
 
-    // Demo (free) keys use x-cg-demo-api-key. Pro keys need a different header and base URL.
+    // Demo (free) keys use x-cg-demo-api-key. Pro keys need x-cg-pro-api-key and pro base URL.
     const headers = { accept: 'application/json' };
-    if (apiKey) headers['x-cg-demo-api-key'] = apiKey;
+    if (apiKey) {
+      if (baseUrl.includes('pro-api.coingecko.com')) {
+        headers['x-cg-pro-api-key'] = apiKey;
+      } else {
+        headers['x-cg-demo-api-key'] = apiKey;
+      }
+    }
 
     let response;
     try {
@@ -96,6 +102,17 @@ export function createCoinGeckoClient({ baseUrl, apiKey, timeoutMs }, fetchImpl 
         throw new UpstreamError('CoinGecko market_chart response had no total_volumes');
       }
       return data.total_volumes;
+    },
+
+    /**
+     * Newly listed coins from CoinGecko (/coins/list/new).
+     * Restricted to paid plans (Analyst/Lite/Pro/Enterprise).
+     * Free/Demo plan responds with HTTP 401.
+     */
+    async fetchNewCoins() {
+      const data = await request('/coins/list/new', {});
+      if (!Array.isArray(data)) throw new UpstreamError('CoinGecko new coins response was not a list');
+      return data;
     },
   };
 }
