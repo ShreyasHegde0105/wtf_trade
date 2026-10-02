@@ -200,12 +200,12 @@ describe('Prompt #4 Compliance: MiniChart & Trend Colors', () => {
     assert.deepEqual(emptyAsset.sparkline_24h, []);
   });
 
-  test('16. Up trend color is #00E5C4 and Down trend color is #FF4B4B', () => {
-    const UP_COLOR = '#00E5C4';
+  test('16. Up trend color is green #10B981 and Down trend color is #FF4B4B', () => {
+    const UP_COLOR = '#10B981';
     const DOWN_COLOR = '#FF4B4B';
     const getStroke = (trend) => (trend === 'up' ? UP_COLOR : DOWN_COLOR);
 
-    assert.equal(getStroke('up'), '#00E5C4');
+    assert.equal(getStroke('up'), '#10B981');
     assert.equal(getStroke('down'), '#FF4B4B');
   });
 });

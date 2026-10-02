@@ -1,3 +1,4 @@
+
 -- Required by POST /internal/scores. The webhook writes history with
 -- ON CONFLICT (symbol, updated_at) DO NOTHING, so a retried delivery is ignored instead of
 -- duplicated. Without this constraint those writes fail. Safe to run more than once.

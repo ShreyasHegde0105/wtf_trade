@@ -70,9 +70,12 @@ test('GET /api/feed/stream is text/event-stream, emits asset events and cleans u
   let text = '';
   res.setEncoding('utf8');
   res.on('data', (chunk) => (text += chunk));
-  await waitFor(() => (text.match(/^data: /gm) ?? []).length >= 10); // initial snapshot + next poll
+  await waitFor(() => text.includes('data: {"assets":'));
 
-  const firstEvent = JSON.parse(text.match(/^data: (.*)$/m)[1]);
+  const parsed = JSON.parse(text.match(/^data: (.*)$/m)[1]);
+  assert.ok(Array.isArray(parsed.assets));
+  assert.ok(parsed.assets.length > 0);
+  const firstEvent = parsed.assets[0];
   assert.ok(firstEvent.id && Number.isFinite(firstEvent.momentum_score));
 
   req.destroy();

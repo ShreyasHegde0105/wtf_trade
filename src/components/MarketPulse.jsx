@@ -8,24 +8,27 @@ import MiniChart from './MiniChart.jsx';
 const TICKER_COUNT = 8;
 
 function PulseTicker({ asset, onOpen }) {
-  const level = classifyMomentum(asset.momentum_score).toLowerCase();
-  const positive = asset.change_24h >= 0;
-  const spark = asset.sparkline_24h?.length > 1 ? asset.sparkline_24h : asset.sparkline_7d;
+  const status = asset.momentum_label || classifyMomentum(asset.momentum_score);
+  const level = status.toLowerCase();
+  const price = asset.price_usd ?? asset.price;
+  const change = asset.price_change_24h ?? asset.change_24h;
+  const positive = change >= 0;
+  const spark = asset.sparkline_7d?.length > 1 ? asset.sparkline_7d : asset.sparkline_24h;
   return (
     <li>
       <button
         type="button"
         className="ticker"
         onClick={() => onOpen(asset.id)}
-        aria-label={`${asset.name} ${formatPrice(asset.price)}, ${formatChange(asset.change_24h)} in 24 hours. Open details`}
+        aria-label={`${asset.name} ${formatPrice(price)}, ${formatChange(change)} in 24 hours. Open details`}
       >
         <span className="ticker__top">
           <span className={`dot dot--${level}`} aria-hidden="true" />
           <span className="ticker__symbol">{asset.symbol}</span>
-          <span className={`ticker__change num ${positive ? 'is-up' : 'is-down'}`}>{formatChange(asset.change_24h)}</span>
+          <span className={`ticker__change num ${positive ? 'is-up' : 'is-down'}`}>{formatChange(change)}</span>
         </span>
         <span className="ticker__bottom">
-          <span className="ticker__price num">{formatPrice(asset.price)}</span>
+          <span className="ticker__price num">{formatPrice(price)}</span>
           <MiniChart data={spark} trend={positive ? 'up' : 'down'} width={48} height={20} strokeWidth={1.5} />
         </span>
       </button>

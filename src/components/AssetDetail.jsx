@@ -56,11 +56,14 @@ export default function AssetDetail({ asset, isWatched, onToggleWatchlist, onClo
   const points = useMemo(() => getSeries(asset, timeframe), [asset, timeframe]);
   const range = useMemo(() => summarizeSeries(points), [points]);
 
-  const status = classifyMomentum(asset.momentum_score);
+  const status = asset.momentum_label || classifyMomentum(asset.momentum_score);
   const level = status.toLowerCase();
-  const positive = asset.change_24h >= 0;
-  const arrow = asset.change_24h > 0 ? '▲' : asset.change_24h < 0 ? '▼' : '';
-  const ratio = safeVolumeRatio(asset.volume_ratio);
+  const price = asset.price_usd ?? asset.price;
+  const change24h = asset.price_change_24h ?? asset.change_24h;
+  const positive = change24h >= 0;
+  const arrow = change24h > 0 ? '▲' : change24h < 0 ? '▼' : '';
+  const avgVol = asset.avg_volume_7d ?? 0;
+  const ratio = safeVolumeRatio(asset.volume_ratio ?? (avgVol > 0 && asset.volume_24h ? asset.volume_24h / avgVol : 0));
   const activeTf = TIMEFRAMES.find((tf) => tf.key === timeframe);
 
   return (
@@ -91,9 +94,9 @@ export default function AssetDetail({ asset, isWatched, onToggleWatchlist, onClo
         </header>
 
         <div className="detail__quote">
-          <span className="detail__price num">{formatPrice(asset.price)}</span>
+          <span className="detail__price num">{formatPrice(price)}</span>
           <span className={`detail__change num ${positive ? 'is-up' : 'is-down'}`}>
-            {arrow} {formatChange(asset.change_24h)}
+            {arrow} {formatChange(change24h)}
             <span className="card__change-period">24h</span>
           </span>
           <span className={`badge badge--${level}`}>{status}</span>
@@ -139,7 +142,7 @@ export default function AssetDetail({ asset, isWatched, onToggleWatchlist, onClo
           </div>
           <div>
             <dt>24h change</dt>
-            <dd className={`num ${positive ? 'is-up' : 'is-down'}`}>{formatChange(asset.change_24h)}</dd>
+            <dd className={`num ${positive ? 'is-up' : 'is-down'}`}>{formatChange(change24h)}</dd>
           </div>
           <div>
             <dt>24h volume</dt>

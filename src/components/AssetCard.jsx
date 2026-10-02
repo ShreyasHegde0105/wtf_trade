@@ -8,10 +8,12 @@ import MiniChart from './MiniChart.jsx';
 const VOLUME_BAR_MAX = 2.5;
 
 function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchlist, onOpen }) {
-  const status = classifyMomentum(asset.momentum_score);
+  const status = asset.momentum_label || classifyMomentum(asset.momentum_score);
   const level = status.toLowerCase();
-  const positive = asset.change_24h >= 0;
-  const arrow = asset.change_24h > 0 ? '▲' : asset.change_24h < 0 ? '▼' : '';
+  const price = asset.price_usd ?? asset.price;
+  const change24h = asset.price_change_24h ?? asset.change_24h;
+  const positive = change24h >= 0;
+  const arrow = change24h > 0 ? '▲' : change24h < 0 ? '▼' : '';
 
   const handleToggle = () => {
     if (onToggleWatchlist) {
@@ -25,7 +27,9 @@ function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchli
     ? asset.sparkline_7d
     : (asset.sparkline_24h || []);
 
-  const ratio = safeVolumeRatio(asset.volume_ratio);
+  const avgVol = asset.avg_volume_7d ?? 0;
+  const computedRatio = avgVol > 0 && asset.volume_24h ? asset.volume_24h / avgVol : 0;
+  const ratio = safeVolumeRatio(asset.volume_ratio ?? computedRatio);
   // Clamp bar width to a safe 0-100% range
   const clampedPercent = Math.min(Math.max((ratio / VOLUME_BAR_MAX) * 100, 0), 100);
 
@@ -62,9 +66,9 @@ function AssetCard({ asset, isWatched = false, onToggleWatchlist, onAddToWatchli
 
       <div className="card__price-row">
         <div className="card__quote">
-          <span className="card__price num">{formatPrice(asset.price)}</span>
+          <span className="card__price num">{formatPrice(price)}</span>
           <span className={`card__change num ${positive ? 'is-up' : 'is-down'}`}>
-            {arrow} {formatChange(asset.change_24h)}
+            {arrow} {formatChange(change24h)}
             <span className="card__change-period">24h</span>
             <span className="visually-hidden"> in 24 hours</span>
           </span>

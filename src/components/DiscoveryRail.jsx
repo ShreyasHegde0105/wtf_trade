@@ -5,25 +5,28 @@ import { DEFAULT_DISCOVERY_CATEGORY, DISCOVERY_CATEGORIES } from '../utils/disco
 import { formatChange, formatScore } from '../utils/format.js';
 
 function chipValue(category, asset) {
-  if (category === 'gainers') return formatChange(asset.change_24h);
-  if (category === 'volume_spikes' && asset.volume_ratio > 0) return `${asset.volume_ratio.toFixed(1)}×`;
+  if (category === 'gainers') return formatChange(asset.price_change_24h ?? asset.change_24h);
+  const ratio = asset.volume_ratio > 0 ? asset.volume_ratio : (asset.avg_volume_7d > 0 && asset.volume_24h ? asset.volume_24h / asset.avg_volume_7d : 0);
+  if (category === 'volume_spikes' && ratio > 0) return `${ratio.toFixed(1)}×`;
   return formatScore(asset.momentum_score);
 }
 
 function chipMetricLabel(category, asset) {
   if (category === 'gainers') return '24h';
-  if (category === 'volume_spikes' && asset.volume_ratio > 0) return 'vol';
+  const ratio = asset.volume_ratio > 0 ? asset.volume_ratio : (asset.avg_volume_7d > 0 && asset.volume_24h ? asset.volume_24h / asset.avg_volume_7d : 0);
+  if (category === 'volume_spikes' && ratio > 0) return 'vol';
   return 'mom';
 }
 
 function chipSecondary(category, asset) {
   if (category === 'gainers') return null;
-  return formatChange(asset.change_24h);
+  return formatChange(asset.price_change_24h ?? asset.change_24h);
 }
 
 function DiscoveryChip({ asset, category, onSelect }) {
-  const positive = asset.change_24h >= 0;
-  const status = classifyMomentum(asset.momentum_score);
+  const change = asset.price_change_24h ?? asset.change_24h;
+  const positive = change >= 0;
+  const status = asset.momentum_label || classifyMomentum(asset.momentum_score);
   const level = status.toLowerCase();
   const secondary = chipSecondary(category, asset);
 
@@ -32,7 +35,7 @@ function DiscoveryChip({ asset, category, onSelect }) {
       type="button"
       className={`scan-chip scan-chip--${level}`}
       onClick={() => onSelect(asset)}
-      aria-label={`${asset.name} (${asset.symbol}): ${formatChange(asset.change_24h)}, ${status}`}
+      aria-label={`${asset.name} (${asset.symbol}): ${formatChange(change)}, ${status}`}
     >
       <span className="scan-chip__row">
         <span className="scan-chip__symbol">{asset.symbol}</span>

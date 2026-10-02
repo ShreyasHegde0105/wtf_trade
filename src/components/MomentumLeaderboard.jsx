@@ -93,9 +93,10 @@ export function MomentumLeaderboard({ onSelectAsset }) {
               {leaderboard.map((asset, index) => {
                 const rank = typeof asset.rank === 'number' ? asset.rank : index + 1;
                 const isRankOne = rank === 1;
-                const status = classifyMomentum(asset.momentum_score);
-                const positive = asset.change_24h >= 0;
-                const arrow = asset.change_24h > 0 ? '▲' : asset.change_24h < 0 ? '▼' : '';
+                const status = asset.momentum_label || classifyMomentum(asset.momentum_score);
+                const change24h = asset.price_change_24h ?? asset.change_24h;
+                const positive = change24h >= 0;
+                const arrow = change24h > 0 ? '▲' : change24h < 0 ? '▼' : '';
                 const scorePct = topScore > 0 ? Math.max((asset.momentum_score / topScore) * 100, 0) : 0;
 
                 return (
@@ -143,7 +144,7 @@ export function MomentumLeaderboard({ onSelectAsset }) {
                     </td>
                     <td className="lb__td lb__td--num">
                       <span className={`num ${positive ? 'is-up' : 'is-down'}`}>
-                        {arrow} {formatChange(asset.change_24h)}
+                        {arrow} {formatChange(change24h)}
                       </span>
                     </td>
                   </tr>

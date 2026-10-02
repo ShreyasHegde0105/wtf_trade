@@ -14,7 +14,7 @@ const list = (value) =>
 
 export function loadConfig(env = process.env) {
   return {
-    port: toInt(env.PORT, 3001, 0),
+    port: toInt(env.PORT, 4000, 0),
     nodeEnv: env.NODE_ENV || 'development',
     corsOrigins: list(env.CORS_ORIGIN),
     coingecko: {
@@ -42,10 +42,10 @@ export function loadConfig(env = process.env) {
     feed: {
       topN: 20,
       universeSize: toInt(env.UNIVERSE_SIZE, 20),
-      pollIntervalMs: toInt(env.POLL_INTERVAL_MS, 10_000),
-      volumeTtlMs: toInt(env.VOLUME_CACHE_TTL_MS, 60 * 60 * 1000),
+      pollIntervalMs: toInt(env.POLL_INTERVAL_MS, 60_000),
+      volumeTtlMs: toInt(env.VOLUME_CACHE_TTL_MS, 21_600_000),
       volumeRequestDelayMs: toInt(env.VOLUME_REQUEST_DELAY_MS, 2500, 0),
-      heartbeatMs: 15_000,
+      heartbeatMs: toInt(env.HEARTBEAT_MS, 30_000),
       maxSseClients: toInt(env.MAX_SSE_CLIENTS, 200),
     },
   };

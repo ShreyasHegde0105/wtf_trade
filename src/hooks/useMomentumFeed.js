@@ -26,6 +26,16 @@ function mergeAssets(assetsById, incoming) {
   return next;
 }
 
+/** Replaces the active asset set and purges stale assets that dropped out of the universe. */
+function replaceAssets(assetsById, incoming) {
+  const next = {};
+  for (const asset of incoming) {
+    const current = assetsById[asset.id];
+    next[asset.id] = current && isSameAsset(current, asset) ? current : asset;
+  }
+  return next;
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'snapshot':
@@ -33,11 +43,17 @@ function reducer(state, action) {
         ...state,
         phase: 'ready',
         error: null,
-        assetsById: mergeAssets(state.assetsById, action.assets),
+        assetsById: replaceAssets(state.assetsById, action.assets),
         lastUpdated: Date.now(),
       };
     case 'snapshotFailed':
       return state.phase === 'ready' ? state : { ...state, phase: 'error', error: action.message };
+    case 'replace':
+      return {
+        ...state,
+        assetsById: replaceAssets(state.assetsById, action.assets),
+        lastUpdated: Date.now(),
+      };
     case 'patch':
       return {
         ...state,
@@ -76,15 +92,28 @@ export function useMomentumFeed() {
     };
 
     const handleMessage = (event) => {
-      let asset;
       try {
-        asset = sanitizeAsset(JSON.parse(event.data));
+        const parsed = JSON.parse(event.data);
+        const list = Array.isArray(parsed)
+          ? parsed
+          : (Array.isArray(parsed?.assets) ? parsed.assets : null);
+        if (list) {
+          const assets = list.map(sanitizeAsset).filter(Boolean);
+          if (assets.length > 0) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+            pending.clear();
+            dispatch({ type: 'replace', assets });
+          }
+          return;
+        }
+        const asset = sanitizeAsset(parsed);
+        if (!asset) return;
+        pending.set(asset.id, asset);
+        flushTimer ??= setTimeout(flush, FLUSH_MS);
       } catch {
-        return; // ignore malformed events
+        // ignore malformed events
       }
-      if (!asset) return;
-      pending.set(asset.id, asset);
-      flushTimer ??= setTimeout(flush, FLUSH_MS);
     };
 
     const openStream = () => {

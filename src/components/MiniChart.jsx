@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Line, LineChart, YAxis } from 'recharts';
 
-export const UP_COLOR = '#00E5C4';
+export const UP_COLOR = '#10B981';
 export const DOWN_COLOR = '#FF4B4B';
 
 function MiniChart({ data, prices, trend, positive, width = 80, height = 40, strokeWidth = 2 }) {

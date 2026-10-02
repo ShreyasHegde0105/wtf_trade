@@ -1,4 +1,4 @@
-import { computeMomentumScore, toFiniteNumber } from '../../shared/momentum.js';
+import { classifyMomentum, computeMomentumScore, toFiniteNumber } from '../../shared/momentum.js';
 
 const SPARKLINE_POINTS = 24;
 
@@ -51,21 +51,26 @@ export function toPublicAsset(candidate) {
     id: candidate.id,
     symbol: candidate.symbol,
     name: candidate.name,
+    price_usd: candidate.price,
+    price_change_24h: candidate.change_24h,
+    volume_24h: candidate.volume_24h,
+    avg_volume_7d: avg !== null ? round(avg, 2) : 0,
+    momentum_score: round(momentum),
+    momentum_label: classifyMomentum(momentum),
+    sparkline_7d: candidate.sparkline_7d ?? candidate.sparkline_24h ?? [],
+    // Retain legacy aliases for backwards compatibility with existing UI components:
     price: candidate.price,
     change_24h: candidate.change_24h,
-    volume_24h: candidate.volume_24h,
     volume_ratio: round(volumeRatio, 2),
-    momentum_score: round(momentum),
     asset_type: candidate.asset_type,
     // Only providers that know the listing exchange (equities) set it; crypto omits it.
     ...(candidate.exchange ? { exchange: candidate.exchange } : {}),
     sparkline_24h: candidate.sparkline_24h ?? [],
-    sparkline_7d: candidate.sparkline_7d ?? candidate.sparkline_24h ?? [],
   };
 }
 
 const hasValidNumbers = (asset) =>
-  [asset.price, asset.change_24h, asset.volume_24h, asset.momentum_score].every(Number.isFinite);
+  [asset.price_usd ?? asset.price, asset.price_change_24h ?? asset.change_24h, asset.volume_24h, asset.momentum_score].every(Number.isFinite);
 
 const byMomentum = (a, b) =>
   b.momentum_score - a.momentum_score || b.volume_24h - a.volume_24h || a.id.localeCompare(b.id);

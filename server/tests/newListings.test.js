@@ -57,7 +57,7 @@ test('createNewListingsService: normalizes new coins that match market candidate
 
   // Verify exact public shape & internals are hidden
   for (const asset of listings) {
-    assert.equal('avg_volume_7d' in asset, false);
+    assert.equal('avg_volume_7d' in asset, true);
     assert.equal('_candidates' in asset, false);
     assert.ok(Number.isFinite(asset.price));
     assert.ok(Number.isFinite(asset.change_24h));

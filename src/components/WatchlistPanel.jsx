@@ -12,9 +12,11 @@ function initiallyOpen() {
 }
 
 function WatchlistItem({ id, asset, onRemove, onSelectAsset }) {
-  const status = asset?.momentum_score != null ? classifyMomentum(asset.momentum_score) : null;
-  const positive = asset?.change_24h != null ? asset.change_24h >= 0 : null;
-  const arrow = asset?.change_24h > 0 ? '▲' : asset?.change_24h < 0 ? '▼' : '';
+  const status = asset?.momentum_label || (asset?.momentum_score != null ? classifyMomentum(asset.momentum_score) : null);
+  const price = asset ? (asset.price_usd ?? asset.price) : null;
+  const change24h = asset ? (asset.price_change_24h ?? asset.change_24h) : null;
+  const positive = change24h != null ? change24h >= 0 : null;
+  const arrow = change24h != null && change24h > 0 ? '▲' : change24h != null && change24h < 0 ? '▼' : '';
   const displayName = asset?.name || id;
   const displaySymbol = asset?.symbol || id.toUpperCase();
   const spark = asset?.sparkline_7d?.length > 1 ? asset.sparkline_7d : asset?.sparkline_24h;
@@ -49,10 +51,10 @@ function WatchlistItem({ id, asset, onRemove, onSelectAsset }) {
         </span>
 
         <span className="wl-row__market">
-          <span className="wl-row__price num">{asset?.price != null ? formatPrice(asset.price) : '—'}</span>
-          {asset?.change_24h != null ? (
+          <span className="wl-row__price num">{price != null ? formatPrice(price) : '—'}</span>
+          {change24h != null ? (
             <span className={`wl-row__change num ${positive ? 'is-up' : 'is-down'}`}>
-              {arrow} {formatChange(asset.change_24h)}
+              {arrow} {formatChange(change24h)}
             </span>
           ) : (
             <span className="wl-row__change">No live data</span>

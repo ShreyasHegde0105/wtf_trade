@@ -5,7 +5,8 @@ export function createSseHub({ heartbeatMs, maxClients, logger }) {
   const clients = new Set();
   let heartbeat = null;
 
-  const encode = (assets) => assets.map((asset) => `data: ${JSON.stringify(asset)}\n\n`).join('');
+  /** One `data:` event containing the asset list payload. */
+  const encode = (assets) => `data: ${JSON.stringify({ assets })}\n\n`;
 
   function remove(res, reason) {
     if (!clients.delete(res)) return;
@@ -61,7 +62,7 @@ export function createSseHub({ heartbeatMs, maxClients, logger }) {
       logger.info('sse_client_connected', { clients: clients.size });
     },
 
-    /** One `data:` event per asset. */
+    /** One `data:` event containing the full asset list. */
     broadcast(assets) {
       if (clients.size > 0) writeToAll(encode(assets));
     },

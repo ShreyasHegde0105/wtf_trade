@@ -13,8 +13,8 @@
   --warming: #f59e0b;
   --neutral: #444444;
 
-  /* Direction uses the brand pair: teal up, red down. */
-  --up: var(--accent);
+  /* Direction: green for positive movement, red down; brand accent remains WTF teal (#00e5c4). */
+  --up: #10b981;
   --down: var(--hot);
   --gold: var(--warming); /* rank #1 / watched star */
 
@@ -22,6 +22,7 @@
   --surface-2: #161616;
   --border-strong: #2a2a2a;
   --accent-tint: rgba(0, 229, 196, 0.1);
+  --up-tint: rgba(16, 185, 129, 0.12);
   --hot-tint: rgba(255, 75, 75, 0.12);
   --warming-tint: rgba(245, 158, 11, 0.12);
   --hover: rgba(255, 255, 255, 0.03);
@@ -42,7 +43,7 @@
   /* Radii: controls / inputs+chips / cards / panels */
   --r-sm: 6px;
   --r-md: 8px;
-  --r-lg: 10px;
+  --r-lg: 12px;
   --r-xl: 14px;
 
   --topbar-h: 52px;

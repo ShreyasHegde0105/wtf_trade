@@ -51,8 +51,8 @@ test('buildSnapshot scores, sorts by momentum descending, limits to topN and hid
 
   assert.deepEqual(assets.map((a) => a.id), ['b', 'c']);
   assert.equal(assets[0].momentum_score, 5.8); // 10 * 0.4 + 3 * 0.6
-  assert.equal('avg_volume_7d' in assets[0], false);
-  for (const key of ['id', 'symbol', 'name', 'price', 'change_24h', 'volume_24h', 'momentum_score']) {
+  assert.equal('avg_volume_7d' in assets[0], true);
+  for (const key of ['id', 'symbol', 'name', 'price_usd', 'price_change_24h', 'volume_24h', 'avg_volume_7d', 'momentum_score', 'momentum_label', 'sparkline_7d']) {
     assert.ok(key in assets[0], `missing ${key}`);
   }
 });
