@@ -13,8 +13,8 @@ export function cors(allowedOrigins) {
       res.setHeader('Vary', 'Origin');
     }
     if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-WTF-Secret');
       res.sendStatus(204);
       return;
     }

@@ -1,4 +1,4 @@
-import { buildSnapshot } from '../utils/assets.js';
+import { buildFeedSnapshot } from '../utils/assets.js';
 
 /**
  * Shared polling loop: one poll at a time for the whole process, regardless of how many
@@ -52,7 +52,7 @@ export function createFeedService({ providers, topN, pollIntervalMs, logger }) {
     if (!gotFreshData) return; // keep the previous snapshot, nothing new to broadcast
 
     const allCandidates = [...lastGood.values()].flat();
-    const assets = buildSnapshot(allCandidates, topN);
+    const assets = buildFeedSnapshot(allCandidates, topN);
     if (assets.length === 0) return;
 
     snapshot = { assets, updatedAt: Date.now(), _candidates: allCandidates };

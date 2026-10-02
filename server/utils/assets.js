@@ -57,6 +57,8 @@ export function toPublicAsset(candidate) {
     volume_ratio: round(volumeRatio, 2),
     momentum_score: round(momentum),
     asset_type: candidate.asset_type,
+    // Only providers that know the listing exchange (equities) set it; crypto omits it.
+    ...(candidate.exchange ? { exchange: candidate.exchange } : {}),
     sparkline_24h: candidate.sparkline_24h ?? [],
     sparkline_7d: candidate.sparkline_7d ?? candidate.sparkline_24h ?? [],
   };
@@ -65,16 +67,25 @@ export function toPublicAsset(candidate) {
 const hasValidNumbers = (asset) =>
   [asset.price, asset.change_24h, asset.volume_24h, asset.momentum_score].every(Number.isFinite);
 
+const byMomentum = (a, b) =>
+  b.momentum_score - a.momentum_score || b.volume_24h - a.volume_24h || a.id.localeCompare(b.id);
+
 /** Scores candidates, drops invalid ones and returns the top N by momentum_score (descending). */
 export function buildSnapshot(candidates, topN) {
-  return candidates
-    .map(toPublicAsset)
-    .filter(hasValidNumbers)
-    .sort(
-      (a, b) =>
-        b.momentum_score - a.momentum_score ||
-        b.volume_24h - a.volume_24h ||
-        a.id.localeCompare(b.id),
-    )
-    .slice(0, topN);
+  return candidates.map(toPublicAsset).filter(hasValidNumbers).sort(byMomentum).slice(0, topN);
+}
+
+/**
+ * Like buildSnapshot, but topN applies per asset_type, so equities never crowd crypto out of
+ * the feed (or the reverse). The merged list is still sorted by momentum_score. With a
+ * single asset type this is identical to buildSnapshot.
+ */
+export function buildFeedSnapshot(candidates, topN) {
+  const byType = new Map();
+  for (const candidate of candidates) {
+    const group = byType.get(candidate.asset_type) ?? [];
+    group.push(candidate);
+    byType.set(candidate.asset_type, group);
+  }
+  return [...byType.values()].flatMap((group) => buildSnapshot(group, topN)).sort(byMomentum);
 }

@@ -3,6 +3,9 @@ const toInt = (value, fallback, min = 1) => {
   return Number.isFinite(n) && n >= min ? n : fallback;
 };
 
+/** Comma-separated tickers: trimmed, upper-cased, empty entries and duplicates removed. */
+export const symbolList = (value) => [...new Set(list(value).map((symbol) => symbol.toUpperCase()))];
+
 const list = (value) =>
   (value ?? '')
     .split(',')
@@ -28,8 +31,13 @@ export function loadConfig(env = process.env) {
       secret: env.WTF_WEBHOOK_SECRET || '',
     },
     equities: {
-      provider: env.EQUITIES_PROVIDER || '',
-      apiKey: env.EQUITIES_API_KEY || '',
+      symbols: symbolList(env.EQUITIES_SYMBOLS),
+      baseUrl: env.YAHOO_FINANCE_BASE_URL || 'https://query1.finance.yahoo.com',
+      timeoutMs: 8000,
+      refreshMs: toInt(env.EQUITIES_REFRESH_MS, 60_000),
+      closedRefreshMs: toInt(env.EQUITIES_CLOSED_REFRESH_MS, 15 * 60 * 1000),
+      historyTtlMs: toInt(env.EQUITIES_HISTORY_TTL_MS, 6 * 60 * 60 * 1000),
+      historyRequestDelayMs: toInt(env.EQUITIES_HISTORY_REQUEST_DELAY_MS, 500, 0),
     },
     feed: {
       topN: 20,
