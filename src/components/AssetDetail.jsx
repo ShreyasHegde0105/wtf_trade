@@ -75,7 +75,10 @@ export default function AssetDetail({ asset, isWatched, onToggleWatchlist, onClo
               <span className="detail__symbol">{asset.symbol}</span>
               <span className="detail__name">{asset.name}</span>
             </h2>
-            <span className="detail__type">{asset.asset_type === 'equity' ? 'Equity' : 'Crypto'} · USD</span>
+            <div className="detail__meta-row">
+              <span className="detail__type">{asset.asset_type === 'equity' ? 'Equity' : 'Crypto'} · USD</span>
+              <span className={`badge badge--${level}`}>{status}</span>
+            </div>
           </div>
           <div className="detail__actions">
             <button
@@ -95,11 +98,12 @@ export default function AssetDetail({ asset, isWatched, onToggleWatchlist, onClo
 
         <div className="detail__quote">
           <span className="detail__price num">{formatPrice(price)}</span>
-          <span className={`detail__change num ${positive ? 'is-up' : 'is-down'}`}>
-            {arrow} {formatChange(change24h)}
-            <span className="card__change-period">24h</span>
-          </span>
-          <span className={`badge badge--${level}`}>{status}</span>
+          <div className="detail__change-wrap">
+            <span className={`detail__change num ${positive ? 'is-up' : 'is-down'}`}>
+              {arrow} {formatChange(change24h)}
+            </span>
+            <span className="detail__period">24H</span>
+          </div>
         </div>
 
         <div className="detail__chart-bar">
@@ -121,15 +125,12 @@ export default function AssetDetail({ asset, isWatched, onToggleWatchlist, onClo
               );
             })}
           </div>
-          <span className="detail__chart-kind">Line · hourly</span>
+          <span className="detail__chart-kind">
+            {timeframe === '1d' ? '24H · 6H intervals' : timeframe === '7d' ? '7D · Daily range' : 'Line chart'}
+          </span>
         </div>
 
-        <PriceChart points={points} label={`${asset.symbol} ${activeTf?.description ?? ''} price`} />
-
-        <div className="detail__axis-labels" aria-hidden="true">
-          <span>{timeframe === '1d' ? '24h ago' : '7d ago'}</span>
-          <span>Now</span>
-        </div>
+        <PriceChart points={points} timeframe={timeframe} label={`${asset.symbol} ${activeTf?.description ?? ''} price`} />
 
         <dl className="detail__stats">
           <div>

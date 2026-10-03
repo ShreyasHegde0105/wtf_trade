@@ -58,7 +58,7 @@ const MemoChip = memo(DiscoveryChip);
 
 function RailFrame({ children, count }) {
   return (
-    <section id="discover" className="discovery panel" aria-label="Discovery rail">
+    <section id="discover" className="discovery" aria-label="Discovery rail">
       <div className="section-head">
         <h2 className="section-head__title">Discover</h2>
         <span className="section-head__sub">Market scanner{count != null ? ` · ${count} signals` : ''}</span>

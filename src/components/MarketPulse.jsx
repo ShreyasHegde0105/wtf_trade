@@ -50,8 +50,8 @@ function MarketPulse({ assets = [], phase, onOpenAsset }) {
   return (
     <section className="pulse" aria-labelledby="pulse-title">
       <div className="section-head">
-        <h2 id="pulse-title" className="section-head__title">Market Pulse</h2>
-        <span className="section-head__sub">Moving now · by momentum</span>
+        <h2 id="pulse-title" className="section-head__title">Overview</h2>
+        <span className="section-head__sub">by momentum score</span>
       </div>
 
       <div className="pulse__body">

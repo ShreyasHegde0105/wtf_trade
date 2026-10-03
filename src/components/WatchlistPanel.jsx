@@ -90,7 +90,7 @@ function WatchlistPanel({ watchedIds = [], assets = [], onRemove, onSelectAsset 
   }, [assets]);
 
   return (
-    <aside id="watchlist" className={`watchlist panel ${isOpen ? 'is-open' : 'is-collapsed'}`} aria-labelledby="watchlist-title">
+    <div className={`watchlist ${isOpen ? 'is-open' : 'is-collapsed'}`} aria-labelledby="watchlist-title">
       <div className="watchlist__header">
         <button
           type="button"
@@ -137,7 +137,7 @@ function WatchlistPanel({ watchedIds = [], assets = [], onRemove, onSelectAsset 
           </>
         )}
       </div>
-    </aside>
+    </div>
   );
 }
 

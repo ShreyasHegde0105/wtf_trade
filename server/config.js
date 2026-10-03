@@ -30,6 +30,19 @@ export function loadConfig(env = process.env) {
     webhook: {
       secret: env.WTF_WEBHOOK_SECRET || '',
     },
+    // Equity market data: MARKET_DATA_PROVIDER is tried first, then the others in the default
+    // order (alpha_vantage, yahoo_finance, coingecko). Alpha Vantage is skipped while
+    // ALPHA_VANTAGE_API_KEY is empty. The key is server-only and never logged.
+    marketData: {
+      provider: env.MARKET_DATA_PROVIDER || 'alpha_vantage',
+      cooldownMs: toInt(env.MARKET_PROVIDER_COOLDOWN_MS, 5 * 60 * 1000),
+      failureThreshold: toInt(env.MARKET_PROVIDER_FAILURE_THRESHOLD, 3),
+    },
+    alphaVantage: {
+      apiKey: env.ALPHA_VANTAGE_API_KEY || '',
+      baseUrl: env.ALPHA_VANTAGE_BASE_URL || 'https://www.alphavantage.co',
+      timeoutMs: 8000,
+    },
     equities: {
       symbols: symbolList(env.EQUITIES_SYMBOLS),
       baseUrl: env.YAHOO_FINANCE_BASE_URL || 'https://query1.finance.yahoo.com',

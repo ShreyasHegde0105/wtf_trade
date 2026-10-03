@@ -77,11 +77,13 @@ async function mapWithConcurrency(items, limit, fn) {
 }
 
 /**
- * Equities provider (Yahoo Finance). Implements the provider interface in ./crypto.js.
+ * Equities provider. Implements the provider interface in ./crypto.js. `client` is the
+ * market-data manager (Alpha Vantage first, Yahoo Finance as fallback); every provider
+ * returns the same quote/history shape, so nothing here depends on which one answered.
  * - Symbols come from EQUITIES_SYMBOLS; an empty list disables the provider (returns null).
  * - Quotes are refreshed every refreshMs while the US regular session is open and every
  *   closedRefreshMs otherwise (or at the next session open, if sooner). Between refreshes
- *   the last quotes are served, so the 10s feed poll never hammers Yahoo.
+ *   the last quotes are served, so the feed poll never hammers the providers.
  * - One failing symbol is logged and skipped; it keeps its last good quote for up to 30 min.
  * - Throws only when no symbol has usable data, so the feed keeps its last good equities.
  */
@@ -154,12 +156,12 @@ export function createEquitiesProvider({ config, client, volumeCache, logger, no
   }
 
   return {
-    name: 'yahoo-finance',
+    name: 'equities',
 
     async fetchAssets() {
       if (now() >= nextRefreshAt) await refresh();
       const candidates = currentCandidates();
-      if (candidates.length === 0) throw new UpstreamError('Yahoo Finance returned no usable equities');
+      if (candidates.length === 0) throw new UpstreamError('Market data providers returned no usable equities');
       return candidates;
     },
   };

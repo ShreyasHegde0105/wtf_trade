@@ -54,10 +54,10 @@ export function MomentumLeaderboard({ onSelectAsset }) {
   const topScore = leaderboard.reduce((max, asset) => Math.max(max, asset.momentum_score || 0), 0);
 
   return (
-    <section className="leaderboard panel" aria-labelledby="leaderboard-title">
+    <section className="leaderboard" aria-labelledby="leaderboard-title">
       <div className="section-head">
-        <h2 id="leaderboard-title" className="section-head__title">Momentum Leaderboard</h2>
-        <span className="section-head__sub">Top 10 by momentum score · refreshes every 60s</span>
+        <h2 id="leaderboard-title" className="section-head__title">Momentum</h2>
+        <span className="section-head__sub">Top 10 · refreshes every 60s</span>
       </div>
 
       {phase === 'loading' && (

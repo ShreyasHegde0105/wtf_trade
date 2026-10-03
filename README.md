@@ -90,12 +90,24 @@ No network or hitting rate limits? `npm run dev:mock` starts a **synthetic** Coi
 | `EQUITIES_HISTORY_TTL_MS` | `21600000` | Freshness of the equities 7-session average volume (6h) |
 | `EQUITIES_HISTORY_REQUEST_DELAY_MS` | `500` | Spacing between equity history requests |
 | `YAHOO_FINANCE_BASE_URL` | `https://query1.finance.yahoo.com` | Override, e.g. for a mock |
+| `ALPHA_VANTAGE_API_KEY` | empty | Alpha Vantage key (primary equities source). Server-only: never in the frontend, Vercel or Git; never logged. Empty = Alpha Vantage skipped, Yahoo serves equities |
+| `MARKET_DATA_PROVIDER` | `alpha_vantage` | Provider tried first (`alpha_vantage`, `yahoo_finance`, `coingecko`); the others follow in that default order |
+| `MARKET_PROVIDER_COOLDOWN_MS` | `300000` | How long a failing provider is skipped (rate limit / auth / plan errors at once; 5xx, timeouts, network, malformed responses after the threshold) |
+| `MARKET_PROVIDER_FAILURE_THRESHOLD` | `3` | Consecutive 5xx/timeout/network/malformed failures before a cooldown |
+| `ALPHA_VANTAGE_BASE_URL` | `https://www.alphavantage.co` | Override, e.g. for a mock |
 | `VITE_API_BASE_URL` | empty | Frontend, build-time: backend origin when deployed. Empty locally |
 
 ## Where to plug in real APIs
 
 - **Crypto market data provider: CoinGecko:** everything lives in `server/services/coingecko.js` (URLs, params, auth header). Put your key in `.env` as `COINGECKO_API_KEY`.
-- **Equities (backend):** all Yahoo requests live in `server/services/yahooFinance.js`; `server/services/providers/equities.js` maps them to the provider interface. To swap data sources, replace the client and keep the candidate shape.
+- **Equities (backend):** Alpha Vantage requests live in `server/services/alphaVantage.js` and Yahoo requests in `server/services/yahooFinance.js`; both return the same quote/history objects. `server/services/marketDataManager.js` tries them in order (Alpha Vantage → Yahoo Finance → CoinGecko, which is skipped because it has no equity endpoints) with per-provider cooldowns, and `server/services/providers/equities.js` maps the result to the provider interface.
+
+### Market data provider fallback
+
+- **Equities:** `GLOBAL_QUOTE` (price, previous close, volume) + `TIME_SERIES_INTRADAY` 15min (sparkline) + `TIME_SERIES_DAILY` compact (7-session average volume) + `OVERVIEW` once per symbol (name, exchange, currency). A quote needs both quote and intraday data from the same provider, otherwise the whole call falls back to Yahoo. Any failure moves to the next provider; when all fail, the existing per-symbol last-good quotes (30 min) and the feed's last snapshot are kept.
+- **Crypto:** stays on CoinGecko. Alpha Vantage has no equivalent of `/coins/markets` (market-cap-ranked universe, USD 24h volume, 7d hourly sparkline); its crypto endpoints are per-pair rates and daily series, so it is not used for crypto.
+- **Logs:** `market_provider_chain`, `market_provider_selected`, `market_provider_failed`, `market_provider_fallback`, `market_provider_success`, `market_provider_cooldown`, `market_provider_recovered`. Request URLs (which carry the key) are never logged.
+- **Plan limits:** the Alpha Vantage free plan allows 25 requests/day. One equities refresh costs 2 requests per symbol (14 for the default 7 symbols), so on the free plan Alpha Vantage serves only the first refresh(es) of the day, then hits the rate limit, enters cooldown and Yahoo serves. A premium plan is needed for Alpha Vantage to stay primary all day.
 
 ### Equities details
 
